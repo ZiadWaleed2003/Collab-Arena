@@ -4,7 +4,7 @@ import os
 from typing import Dict, List
 from dataclasses import dataclass, field
 
-from src.CommunicationModule.blackboard import Blackboard
+from src.CommunicationModule import create_communication
 from src.agent import Agent
 
 from input_data.data import load_sample_datasets
@@ -14,7 +14,7 @@ class Simulation:
     Main simulation class that orchestrates the multi-agent collaboration
     """
     def __init__(self):
-        self.communication_module = Blackboard()
+        self.communication_module = create_communication("pubsub")
         self.agents: List[Agent] = []
         self.datasets = load_sample_datasets()
     
@@ -48,6 +48,41 @@ class Simulation:
             Agent(config["id"], config["role"], config["system_prompt"])
             for config in agent_configs
         ]
+        
+                # Setup pubsub topics and subscriptions
+        self._setup_pubsub_topics()
+    
+    def _setup_pubsub_topics(self) -> None:
+        """Setup pubsub topics and agent subscriptions based on roles"""
+        # Register all agents
+        for agent in self.agents:
+            self.communication_module.register_agent(agent.agent_id)
+        
+        # Define topic-based communication structure
+        # All agents subscribe to general topics
+        general_topics = ["problem_statements", "coordination", "final_solutions"]
+        for agent in self.agents:
+            for topic in general_topics:
+                self.communication_module.subscribe(agent.agent_id, topic)
+        
+        # Role-specific topic subscriptions
+        role_topics = {
+            "Problem Analyst": ["analysis_requests", "problem_breakdown"],
+            "Team Coordinator": ["coordination", "status_updates", "team_sync"],
+            "Domain Specialist": ["technical_insights", "expert_consultation"],
+            "Solution Implementer": ["implementation_plans", "technical_details"]
+        }
+        
+        for agent in self.agents:
+            if agent.role in role_topics:
+                for topic in role_topics[agent.role]:
+                    self.communication_module.subscribe(agent.agent_id, topic)
+        
+        print("📡 Pubsub Communication Setup:")
+        print(f"   Topics created: {self.communication_module.get_all_topics()}")
+        for agent in self.agents:
+            subscriptions = self.communication_module.get_subscriptions(agent.agent_id)
+            print(f"   {agent.role} ({agent.agent_id}): {list(subscriptions)}")
     
     def run_simulation(self, problem_data: Dict, max_steps: int = 2) -> Dict:
         """
@@ -63,11 +98,12 @@ class Simulation:
         # Clear communication module for new simulation
         self.communication_module.clear()
         
-        # Initialize problem message
-        self.communication_module.post_message(
+        # Initialize problem message to problem_statements topic
+        self.communication_module.publish_message(
             agent_id="system",
             agent_role="System",
             content=f"PROBLEM TO SOLVE: {problem_data['problem']}",
+            topic="problem_statements",
             message_type="problem_statement"
         )
         
@@ -146,7 +182,7 @@ class Simulation:
         Run simulations for all problems in the dataset
         """
         print("🚀 STARTING COLLAB ARENA SIMULATION")
-        print("Testing Blackboard Communication Protocol with LLM-Powered Agents")
+        print("Testing Pub-Sub Communication Protocol with LLM-Powered Agents")
         print(f"Dataset Size: {len(self.datasets)} problems")
         print(f"Agent Team Size: {len(self.agents)} agents")
         
@@ -183,7 +219,7 @@ class Simulation:
             print(f"  • {result['problem_id']}: {result['total_messages']} messages")
         
         print(f"\n🏆 Simulation completed successfully!")
-        print("The Direct Communication protocol is working correctly.")
+        print("The Pub-Sub Communication protocol is working correctly.")
 
 def main():
     """
