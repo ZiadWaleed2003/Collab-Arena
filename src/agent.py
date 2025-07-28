@@ -1,5 +1,6 @@
 from src.CommunicationModule.blackboard import Blackboard
 from src.CommunicationModule.direct_communication import DirectCommunication
+from src.CommunicationModule.pubsub_communication import PubSubCommunicator
 from src.clients import get_llm_client, get_llm
 from typing import Union
 
@@ -46,30 +47,146 @@ class Agent:
         return response.choices[0].message.content
         
     
-    def act(self, communication_module: Union[Blackboard, DirectCommunication], problem: str) -> str:
+    def act(self, communication_module: Union[Blackboard, DirectCommunication, PubSubCommunicator], problem: str) -> str:
         """
         Agent's main action: read messages, generate response, post message
-        Works with both Blackboard and DirectCommunication modules
+        Works with Blackboard, DirectCommunication, and PubSubCommunicator modules
         """
-        # Register agent if using direct communication
+        # Register agent and handle specific communication module setup
         if isinstance(communication_module, DirectCommunication):
             communication_module.register_agent(self.agent_id)
+        elif isinstance(communication_module, PubSubCommunicator):
+            communication_module.register_agent(self.agent_id)
+            self._setup_pubsub_subscriptions(communication_module)
         
-        # Read conversation history (both modules support this method)
-        conversation_history = communication_module.get_conversation_history()
+        # Use communication-specific message retrieval
+        if isinstance(communication_module, PubSubCommunicator):
+            # Get messages from agent's personal queue
+            new_messages = communication_module.get_new_messages_for_agent(self.agent_id)
+            conversation_history = self._format_pubsub_history(new_messages, communication_module)
+        elif isinstance(communication_module, DirectCommunication):
+            # Get messages from agent's mailbox
+            new_messages = communication_module.get_new_messages_for_agent(self.agent_id)
+            conversation_history = communication_module.get_conversation_history()
+        else:
+            # Blackboard - get all messages
+            conversation_history = communication_module.get_conversation_history()
         
         # Generate response using LLM
         response = self.generate_response(problem, conversation_history)
         
-        # Post response (both modules support this method)
-        message_id = communication_module.post_message(
-            agent_id=self.agent_id,
-            agent_role=self.role,
-            content=response,
-            message_type="response"
-        )
+        # Post response using communication-specific method
+        if isinstance(communication_module, PubSubCommunicator):
+            # Determine appropriate topic based on agent role and response content
+            topic = self._determine_topic(response)
+            message_id = communication_module.publish_message(
+                agent_id=self.agent_id,
+                agent_role=self.role,
+                content=response,
+                topic=topic,
+                message_type="response"
+            )
+        else:
+            # Use generic post_message for blackboard and direct communication
+            message_id = communication_module.post_message(
+                agent_id=self.agent_id,
+                agent_role=self.role,
+                content=response,
+                message_type="response"
+            )
         
         return message_id
+    
+    def _setup_pubsub_subscriptions(self, communication_module: PubSubCommunicator):
+        """Setup role-specific subscriptions for pub-sub communication"""
+        # All agents subscribe to general coordination topics
+        general_topics = ["problem_statements", "coordination", "final_solutions"]
+        for topic in general_topics:
+            communication_module.subscribe(self.agent_id, topic)
+        
+        # Role-specific subscriptions for relevant cross-role collaboration
+        if "Problem Analyst" in self.role:
+            # Analyst should see implementation plans to understand feasibility
+            # and status updates to track progress
+            role_specific = ["problem_breakdown", "analysis_requests", "status_updates", "implementation_plans"]
+        elif "Team Coordinator" in self.role:
+            # Coordinator should see all key outputs to coordinate effectively
+            role_specific = ["status_updates", "team_sync", "problem_breakdown", "technical_insights", "implementation_plans"]
+        elif "Domain Specialist" in self.role:
+            # Specialist should see problem analysis and implementation needs
+            role_specific = ["technical_insights", "expert_consultation", "problem_breakdown", "implementation_plans"]
+        elif "Solution Implementer" in self.role:
+            # Implementer should see technical insights and coordination updates
+            role_specific = ["implementation_plans", "technical_details", "technical_insights", "status_updates"]
+        else:
+            role_specific = []
+        
+        # Subscribe to role-specific topics
+        for topic in role_specific:
+            communication_module.subscribe(self.agent_id, topic)
+    
+    def _determine_topic(self, response_content: str) -> str:
+        """Determine appropriate topic based on agent role and response content"""
+        # Simple keyword-based topic determination
+        content_lower = response_content.lower()
+        
+        # Role-based topic mapping - but prioritize shared topics for collaboration
+        if "Problem Analyst" in self.role:
+            if any(word in content_lower for word in ["analysis", "breakdown", "components"]):
+                return "problem_breakdown"  # Other agents can subscribe to this
+            elif any(word in content_lower for word in ["recommend", "suggest", "next"]):
+                return "coordination"  # Shared topic
+        
+        elif "Team Coordinator" in self.role:
+            if any(word in content_lower for word in ["next steps", "action", "timeline", "assign"]):
+                return "coordination"  # Shared topic - critical for coordination
+            elif any(word in content_lower for word in ["status", "progress", "update"]):
+                return "status_updates"
+        
+        elif "Domain Specialist" in self.role:
+            if any(word in content_lower for word in ["technical", "algorithm", "approach", "method"]):
+                return "technical_insights"
+            elif any(word in content_lower for word in ["recommend", "suggest", "solution"]):
+                return "coordination"  # Shared topic
+        
+        elif "Solution Implementer" in self.role:
+            if any(word in content_lower for word in ["implement", "code", "execute", "plan"]):
+                return "implementation_plans"
+            elif any(word in content_lower for word in ["recommend", "suggest", "approach"]):
+                return "coordination"  # Shared topic
+        
+        # Final solution messages - everyone should see these
+        if any(word in content_lower for word in ["solution", "final", "conclusion", "result"]):
+            return "final_solutions"
+        
+        # Default to coordination topic for better collaboration
+        return "coordination"
+    
+    def _format_pubsub_history(self, new_messages, communication_module: PubSubCommunicator) -> str:
+        """Format conversation history for pub-sub with topic context"""
+        if not new_messages:
+            # If no new messages, get some recent context from all messages
+            all_messages = communication_module.get_all_messages()
+            recent_messages = all_messages[-5:] if len(all_messages) > 5 else all_messages
+            
+            if not recent_messages:
+                return "No previous messages."
+            
+            history = "=== RECENT CONVERSATION CONTEXT ===\n"
+            for msg in recent_messages:
+                timestamp = msg.timestamp.strftime("%H:%M:%S")
+                topic = msg.metadata.get('topic', 'default')
+                history += f"[{timestamp}] {msg.agent_role} on TOPIC[{topic}]:\n{msg.content}\n\n"
+            return history
+        
+        # Format new messages received by this agent
+        history = "=== NEW MESSAGES FOR YOU ===\n"
+        for msg in new_messages:
+            timestamp = msg.timestamp.strftime("%H:%M:%S")
+            topic = msg.metadata.get('topic', 'default')
+            history += f"[{timestamp}] {msg.agent_role} on TOPIC[{topic}]:\n{msg.content}\n\n"
+        
+        return history
     
     def send_direct_message(self, communication_module: DirectCommunication, 
                            recipient_id: str, content: str) -> str:
