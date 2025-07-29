@@ -17,12 +17,12 @@ class BaseCommunicator(ABC):
         pass
     
     @abstractmethod
-    def send(self, message: Message) -> bool:
+    def send_message(self, message: Message) -> bool:
         """Send a message"""
         pass
     
     @abstractmethod
-    def receive(self, agent_id: str) -> List[Message]:
+    def receive_message(self, agent_id: str) -> List[Message]:
         """Receive messages for a specific agent"""
         pass
 

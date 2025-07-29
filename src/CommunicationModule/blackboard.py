@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Dict, List
 from ..message import Message
+from .base_communicator import BaseCommunicator
 
-
-class Blackboard:
+class Blackboard(BaseCommunicator):
     """
     Blackboard communication system where all agents can read and write messages
     """
@@ -11,7 +11,7 @@ class Blackboard:
         self.messages: List[Message] = []
         self.message_counter = 0
     
-    def post_message(self, agent_id: str, agent_role: str, content: str, 
+    def send_message(self, agent_id: str, agent_role: str, content: str, 
                     message_type: str = "response", metadata: Dict = None) -> str:
         """Post a message to the blackboard"""
         self.message_counter += 1
@@ -30,7 +30,7 @@ class Blackboard:
         self.messages.append(message)
         return message_id
     
-    def get_all_messages(self) -> List[Message]:
+    def receive_message(self) -> List[Message]:
         """Get all messages from the blackboard"""
         return self.messages.copy()
     
