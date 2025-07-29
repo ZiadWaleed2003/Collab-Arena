@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List
 
-from message import Message
+from src.message import Message
 
 
 class BaseCommunicator(ABC):
@@ -17,12 +17,12 @@ class BaseCommunicator(ABC):
         pass
     
     @abstractmethod
-    def send_message(self, message: Message) -> bool:
+    def send(self, message: Message) -> bool:
         """Send a message"""
         pass
     
     @abstractmethod
-    def receive_message(self, agent_id: str) -> List[Message]:
+    def receive(self, agent_id: str) -> List[Message]:
         """Receive messages for a specific agent"""
         pass
 
