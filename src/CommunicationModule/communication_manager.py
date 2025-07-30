@@ -43,7 +43,7 @@ class CommunicationManager:
     
     def send(self, message: Message) -> bool:
         """Send message using current communicator and log it"""
-        success = self.current_communicator.send(message , 
+        success = self.current_communicator.send(message=message , 
             agent_id=message.agent_id, 
             agent_role=message.agent_role, 
             content=message.content, 

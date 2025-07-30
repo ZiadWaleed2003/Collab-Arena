@@ -21,21 +21,21 @@ class Blackboard(BaseCommunicator):
             return True
         return False
            
-    def send(self, agent_id: str, agent_role: str, content: str, 
+    def send(self, message ,agent_id: str, agent_role: str, content: str, 
                     message_type: str = "response", metadata: Dict = None) -> str:
         """Post a message to the blackboard"""
         self.message_counter += 1
         message_id = f"msg_{self.message_counter:04d}"
         
-        message = Message(
-            id=message_id,
-            agent_id=agent_id,
-            agent_role=agent_role,
-            content=content,
-            timestamp=datetime.now(),
-            message_type=message_type,
-            metadata=metadata or {}
-        )
+        # message = Message(
+        #     id=message_id,
+        #     agent_id=agent_id,
+        #     agent_role=agent_role,
+        #     content=content,
+        #     timestamp=datetime.now(),
+        #     message_type=message_type,
+        #     metadata=metadata or {}
+        # )
         
         self.messages.append(message)
         return message_id

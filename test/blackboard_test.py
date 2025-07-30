@@ -42,7 +42,7 @@ def run_on_blackboard(problem: str, rounds: int = 3) -> CommunicationManager:
     return comm_manager
 
 
-def extract_conversation_history(comm_manager: CommunicationManager) -> str:
+def extract_conversation_history(comm_manager: CommunicationManager , domain) -> str:
     """
     Extract conversation history from the communication manager
     """
@@ -56,8 +56,8 @@ def extract_conversation_history(comm_manager: CommunicationManager) -> str:
     
     for i, msg in enumerate(blackboard.messages, 1):
         timestamp = msg.timestamp.strftime("%H:%M:%S")
-        history += f"[{i}] {timestamp} | From: {msg.sender_id}\n"
-        history += f"Topic: {msg.topic}\n"
+        history += f"[{i}] {timestamp} | From: {msg.agent_id}\n"
+        history += f"Topic: {domain}\n"
         history += f"Content: {msg.content}\n"
         history += "-" * 60 + "\n"
     
@@ -73,9 +73,9 @@ def extract_raw_messages(comm_manager: CommunicationManager) -> List[Dict]:
     raw_messages = []
     for msg in blackboard.messages:
         raw_msg = {
-            "sender_id": msg.sender_id,
+            "sender_id": msg.agent_id,
             "recipient_id": msg.recipient_id,
-            "topic": msg.topic,
+            "topic": msg.message_type,
             "content": msg.content,
             "timestamp": msg.timestamp.isoformat()
         }
@@ -102,7 +102,7 @@ def get_communication_stats(comm_manager: CommunicationManager) -> Dict:
     # Message count per agent
     agent_message_counts = {}
     for msg in blackboard.messages:
-        agent_message_counts[msg.sender_id] = agent_message_counts.get(msg.sender_id, 0) + 1
+        agent_message_counts[msg.agent_id] = agent_message_counts.get(msg.agent_id, 0) + 1
     
     stats["messages_per_agent"] = agent_message_counts
     
@@ -131,7 +131,7 @@ if __name__ == "__main__":
         comm_manager = run_on_blackboard(problem)
         
         # Extract results
-        conversation_history = extract_conversation_history(comm_manager)
+        conversation_history = extract_conversation_history(comm_manager , case["domain"])
         raw_messages = extract_raw_messages(comm_manager)
         stats = get_communication_stats(comm_manager)
         

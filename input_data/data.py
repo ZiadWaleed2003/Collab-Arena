@@ -20,9 +20,9 @@ def load_sample_datasets() -> List[Dict]:
                 "difficulty": "hard"
             },
             {
-                "id": "analysis_003",
-                "problem": "A data scientist has a dataset with 10,000 samples and 50 features. The target variable is continuous. They want to build a predictive model but are concerned about overfitting. What approach should they take?",
-                "domain": "machine_learning", 
-                "difficulty": "medium"
+                "id": "algebra_003",
+                "domain": "algebra", 
+                "difficulty": "medium",
+                "problem": "Given the system: x² + y = 7 and 2x - y = 1. Find all solutions (x, y) and substitute back in the formulas to verify your answer."
             }
         ]
