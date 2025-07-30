@@ -1,0 +1,141 @@
+﻿
+
+PART A 
+ASSESSMENT 2
+RESEARCH PROPOSAL
+
+
+
+
+
+
+
+
+
+
+
+Table of Contents
+
+Title	2
+Introduction and Research Problem	3
+Dataset	4
+Task Selection and Benefit	4
+·	Core Task 1: Collaborative Research & Report Generation:	4
+·	Task 2:	4
+Research Questions	5
+1.	RQ1 (Communication & Memory):	5
+2.	RQ2 (Planning & Delegation):	6
+3.	RQ3 (Human Interaction):	6
+Proposed Methodology	6
+Platform Development:	6
+Experimental Design:	6
+Independent Variables:	6
+Dependent Variables:	6
+Experimentation:	7
+Ethics Statement	7
+Research Gaps	8
+Timeline (7-8 Months)	9
+Expected Outcome	9
+References	10
+
+
+
+
+
+Title
+Evaluating Memory and Communication Architectures for Multi-Agent LLM Collaboration
+Introduction and Research Problem
+The professional integration of AI agents based on a Large Language Model (LLM) is an accelerated process (Xi et al., 2023). Even though single-agent systems produce considerable intelligence in restricted tasks, such as text generation and summarization of information, real work environments are typically collaborative, encompassing complex workflows that require coordination, delegation, and sharing of knowledge among a multitude of actors- both human and artificial. Presently, implementations would consider AI agents as stand-alone tools, which leads to inefficiencies, knowledge silos, coordination overhead, and suboptimal human-AI interaction (Wang et al., 2024).
+In this research, we address the critical lack of understanding along with good practices for implementing effective collaboration between multiple AI agents and with humans in shared workspaces. Important challenges consist of the following: defining reliable agent-to-agent communication protocols (Wooldridge, 2009); designing memory architectures (shared vs. isolated) that balance knowledge access and privacy in forced cooperation; dynamic task planning and delegation; and intuitive, trustworthy human-agent interaction paradigms (approval, feedback, audit) (Dzindolet et al., 2003). Furthermore, the performance benefits of such multi-agent system compared to single-agent approaches remain inadequately quantified.
+Current multi-agent LLM frameworks (like AutoGen and LangGraph) tend to get dedicated towards more linear task chains than any structured collaboration architecture. That said, many significant gaps remain to be filled concerning the effects memory configurations (shared vs. isolated vs. access-controlled) and communication protocols (direct vs. blackboard vs. pub/sub) have on collaborative efficiency, error rate, and human trustworthiness in an enterprise environment. This research presents CollabArena, a novel experimental platform for systematically assessing these architectures through synthetic workflows and human studies.
+Dataset
+Research will tap into:
+Vectorized Enterprise Datasets: Pre-embedded knowledge bases from GAIA (Xu et al., 2024) and WebArena (Zhou et al., 2023) which cover scenarios on customer service, technical documentation, and managing project scenarios.
+Synthetic Collaboration Traces: The AutoGen. (Wu et al. 2023) generated multi-agent interaction logs to auto-generate for the project planning and research tasks.
+Human-Agent records: user-study recordings that are anonymized (Prolific sourced) and are compliant with IRB restrictions.
+Task Selection and Benefit
+The research platform is expected to embrace all the collaborative tasks that would be representative of the usual workplace scenarios.
+· Core Task 1: Collaborative Research & Report Generation: The researchers assigned an agent sub-topic, instructed to communicate findings/results, resolve any conflict/inconsistency between findings, integrate information, and draft section, requiring human approval/feedback on drafts and final output. Benefits: tests on different communication, memory sharing, task delegation, and human oversight models (Wu et al., 2023).
+· Task 2: Collaborative Technical Report (research synthesis with conflicting sources)
+In this activity, large language models are required to collaborate with one another to investigate a topic in technology, using assigned sources that contain deliberate contradictions. Members must communicate with each other using established communication protocols, either through direct messaging or via blackboard. Members must then use their selected memory architecture (with either shared or role-based access) to reconcile said discrepancies and synthesize and write a unified report. Through this procedure, it will be possible to pre-seed 4-6 contradictory technical documents (for instance, arXiv papers discussing certain "AI ethics pitfalls"), configure AutoGen agents into different roles (Researcher/Validator/Editor), and measure the performance through automated logging, recording rounds of debates/memory accesses, as well as a very simple 3-point rubric for human evaluation of report coherence. This arrangement constitutes an effective experiment for testing core variables of memory and communication, while fulfilling the requirement for triviality in the assumption of tool accessibility and minimal custom coding work.
+Benefits: Measures memory access patterns and communication overhead.
+Research Questions
+This research aims to answer the following primary questions:
+1. RQ1 (Communication & Memory): What is the relationship between the types of memory in the system - shared versus isolated versus RBAC [role-based access control]-controlled memory-and the success rate, errors, and efficiency (latency/compute) per task during collaboration involving multiple agents?
+2. RQ2 (Planning & Delegation): What is the extent to which communication mechanisms (direct messaging, blackboard, or publish-subscribe) create differences in coordination time, solution coherence, and final output?
+3. RQ3 (Human Interaction): How might memory/communication configurations affect human trust (Trust Scale), mental load (NASA-TLX), and perceived transparency?
+Proposed Methodology
+The research will employ a design-science research (DSR) approach combined with empirical evaluation:
+Platform Development:
+· Modular implementation of 3 memory modes (shared/isolated/RBAC)
+· Integration of 3 communication layers (direct/blackboard/pubsub)
+· Audit trail logging for coordination analysis
+Experimental Design:
+Independent Variables: Communication protocol (Direct, Blackboard, Pub/Sub, etc.), Memory architecture (Shared, RBAC-shared, Isolated), Task delegation strategy (Capability-based, Planner-based), and Human interaction model (Pre-approval, Post-feedback, Audit-only) shall be made available.
+Memory type × Communication protocol
+Dependent Variables:
+· Task success rate, message volume, error count
+· Solution quality (BERTScore similarity to gold standards)
+· Human trust (7-point Likert), cognitive load (NASA-TLX)
+Experimentation:
+· Controlled Simulations: Run extended controlled experiments across the replicated synthetic datasets and adapted benchmarks to allow systematic variation of the independent variables crossed on defined collaborative tasks. Analyze quantitative performance metrics. 
+· Human Subject Studies: Bring in subjects (eg professionals, researchers, students) to access the platform doing core tasks under different interactional models. Use a within- or mixed-subjects design.
+· Comparative Analysis: Comparatively rigorous multi-agent versus single-agent (or relatively simpler multi-agent) baselines on the same tasks.
+By their very nature, multi-agent collaborations present an opportunity to be designed primarily for any chatbot situated in healthcare or marketing realms, since these need controlled workflows between specialized agents (e.g., patient-triage, billing, or campaign analytics) and human interventions for approvals/audits (Xi et al. 2023; Wang et al. 2024).
+Ethics Statement
+This research prioritizes ethical conduct:
+1. Institutional Review Board (IRB): Prior to human subjects' involvement, the full protocol submission and approval will occur.
+2. Informed consent: Study purposes, their procedures and modalities of data collection, storage, anonymization, and usage-including audio and/or video recording data collection from participants-will be clearly defined and included in the consent form. Written informed consent will be mandatory.
+3. Confidentiality: Participants would not disclose any identity information and sensitive information regarding the investigation under study.
+4. Transparency & Fairness: The interaction types with AI agents would be revealed. The aim of the project will be to design just interaction models by using, where possible, methods that prevent biases in task assignment or evaluation within the platform itself. It shall also acknowledge the limitations of the AI agents (Lyons, 2013).
+5. Beneficence & Non-Maleficence: This study aims to have positive contributions for future workplace design. Risks should be minimized; for example, introducing possible frustration through system errors, or perception of audit trail monitoring This will be done by providing candidates with clear instructions about the interface and support during the study.
+Research Gaps
+This work addresses:
+1. Underexplored trade-offs between shared memory efficiency and isolated memory security
+2. Lack of empirical comparisons of communication protocols in LLM agent teams
+3. Absence of frameworks measuring human trust in multi-agent memory architectures
+Timeline (7-8 Months)
+TimelineKey TasksRealistic OutputsMonths 1-2- Study AutoGen/LangGraph codebase
+- Design 2 memory modes (Shared + RBAC)
+- Implement 1 communication protocol (Direct Messaging)
+- Draft simplified IRB- Basic Python prototype
+- Pseudocode for memory modules
+- Pre-approved synthetic datasets (GAIA/WebArena)Month 3- Build minimal test platform
+- Run simulations on Task 1 (Research Report)
+- Collect initial metrics- 100+ simulation runs
+- CSV logs: success rate, message count, errorsMonth 4- Add 2nd communication protocol (Blackboard)
+- Conduct pilot human study (n=5-10)- Compare direct vs. blackboard latency
+- Initial NASA-TLX survey dataMonth 5- Full human study (n=20-30)
+- Focus on RQ1+RQ2
+- Automated analysis scripts- Dataset: 20 task transcripts
+- Stats: t-tests/ANOVA for memory effectsMonth 6- Analyze results
+- Draft paper sections (Methods/Results)
+- Open-source prototype- 3-5 key findings tables
+- GitHub repo (basic CollabArena version)Months 7-8- Finalize paper
+- Visualizations
+- Submit to mid-tier conference- 8-10 page paper (e.g., HAI, AAMAS workshop)
+- 3 explanatory diagrams
+
+Expected Outcome
+This research will deliver:
+1. Collab Arena Platform: Configurable open-source framework for multi-agent experiments
+2. Architecture Guidelines: Evidence-based recommendations for memory/communication design
+3. HCI-AI Publication: CHI/IUI submissions with datasets and validation metrics
+4. Design Framework & Best Practices: Evidence-based guidelines and a conceptual framework for designing effective, trustworthy, and efficient multi-agent collaborative workspaces. 
+5. Publication: Submitting findings across high-impact conferences/journals (like CHI, IUI, HCI journals, AAMAS, NeurIPS workshops). 
+6. A very good future foundation: A strong platform and baseline results for future investigation into areas like agent learning, advanced negotiation, and large-scale deployment.
+References
+[1] Dzindolet, M.T. et al. (2003) ‘The role of trust in automation reliance’, International Journal of Human-Computer Studies, 58(6), pp. 697–718.
+[2] Hong, S. et al. (2023) MetaGPT: Meta Programming for Multi-Agent Collaborative Framework. arXiv:2308.00352.
+[3] Lyons, J.B. (2013) ‘Being transparent about transparency’, in AAAI Spring Symposium: Trust and Autonomous Systems.
+[4] Shinn, N. et al. (2023) ‘Reflexion: Language agents with verbal reinforcement learning’, Advances in Neural Information Processing Systems, 36.
+[5] Wang, L. et al. (2024) ‘A survey on large language model based autonomous agents’, Frontiers of Computer Science, 18(6), pp. 1–26.
+[6] Wooldridge, M. (2009) An Introduction to MultiAgent Systems. 2nd edn. Chichester: Wiley.
+[7] Wu, Q. et al. (2023) AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation Framework. arXiv:2308.08155.
+[8] Xi, Z. et al. (2023) The Rise and Potential of Large Language Model Based Agents: A Survey. arXiv:2309.07864.
+[9] Xu, W. et al. (2024) GAIA: A Benchmark for General AI Assistants. arXiv:2311.12983.
+[10] Zhou, S. et al. (2023) WebArena: A Realistic Web Environment for Building Autonomous Agents. arXiv:2307.13854.
+
+The body has approx. 1400 words excluding references, table of contents and title page.
+2 | Page
+

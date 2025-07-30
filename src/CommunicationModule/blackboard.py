@@ -1,27 +1,17 @@
 from datetime import datetime
 from typing import Dict, List
 from ..message import Message
-from .base_communicator import BaseCommunicator
 
-class Blackboard(BaseCommunicator):
+
+class Blackboard:
     """
     Blackboard communication system where all agents can read and write messages
     """
     def __init__(self):
-        super().__init__()
         self.messages: List[Message] = []
         self.message_counter = 0
-
-
-    def register_agent(self, agent) -> bool:
-        """Register an agent with the blackboard"""
-        agent_id = getattr(agent, 'id', str(agent))
-        if agent_id not in self.agents:
-            self.agents[agent_id] = agent
-            return True
-        return False
-           
-    def send(self, agent_id: str, agent_role: str, content: str, 
+    
+    def post_message(self, agent_id: str, agent_role: str, content: str, 
                     message_type: str = "response", metadata: Dict = None) -> str:
         """Post a message to the blackboard"""
         self.message_counter += 1
@@ -40,7 +30,7 @@ class Blackboard(BaseCommunicator):
         self.messages.append(message)
         return message_id
     
-    def receive(self , agent_id) -> List[Message]:
+    def get_all_messages(self) -> List[Message]:
         """Get all messages from the blackboard"""
         return self.messages.copy()
     
