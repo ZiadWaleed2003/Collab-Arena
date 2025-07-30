@@ -1,57 +1,124 @@
 from src.CommunicationModule.blackboard import Blackboard
 from src.CommunicationModule.direct_communication import DirectCommunication
 from src.CommunicationModule.pubsub_communication import PubSubCommunicator
+from src.MemoryModule.memory_manager import MemoryManager
 from src.clients import get_llm_client, get_llm
-from typing import Union
+from typing import Union, Optional
 
 
 class Agent:
     """
-    Base agent that communicates through either Blackboard or Direct Communication using LLM calls
+    Base agent that communicates through different protocols and uses memory system
     """
-    def __init__(self, agent_id: str, role: str, system_prompt: str):
+    def __init__(self, agent_id: str, role: str, system_prompt: str, memory_manager: Optional[MemoryManager] = None):
         self.agent_id = agent_id
         self.role = role
         self.system_prompt = system_prompt
         self.step_count = 0
         self.client = get_llm_client()
         self.model = get_llm()
+        self.memory_manager = memory_manager
+        
+        # Register with memory if available
+        if self.memory_manager:
+            self.memory_manager.register_agent(self.agent_id)
+
+    def store_memory(self, key: str, value: any) -> bool:
+        """
+        Store data in agent's memory
+        """
+        if self.memory_manager is None:
+            return False
+        return self.memory_manager.write(key, value, self.agent_id)
+    
+    def retrieve_memory(self, key: str) -> any:
+        """
+        Retrieve data from agent's memory
+        """
+        if self.memory_manager is None:
+            return None
+        return self.memory_manager.read(key, self.agent_id)
+    
+    def get_memory_context(self) -> str:
+        """
+        Get memory context for LLM prompts
+        """
+        if self.memory_manager is None:
+            return ""
+        
+        # Get some recent memory entries for context
+        memory_state = self.memory_manager.get_memory_state()
+        memory_contents = memory_state.get('memory_contents', {})
+        
+        if not memory_contents:
+            return ""
+        
+        context = "\n=== MEMORY CONTEXT ===\n"
+        for key, entry in list(memory_contents.items())[-5:]:  # Last 5 entries
+            if isinstance(entry, dict) and 'value' in entry:
+                context += f"{key}: {entry['value']}\n"
+            else:
+                context += f"{key}: {entry}\n"
+        context += "========================\n"
+        
+        return context
 
     
     def generate_response(self, problem: str, conversation_history: str) -> str:
         """
-        Generate a response using LLM with context length management
+        Generate a response using LLM with context length management and memory
         """
+        # Get memory context
+        memory_context = self.get_memory_context()
+        
         # Truncate conversation history if too long to prevent context overflow
-        max_history_length = 4000  # Reserve space for problem, system prompt, and response
+        max_history_length = 3500  # Reserve space for problem, system prompt, memory, and response
         if len(conversation_history) > max_history_length:
-            # Keep the beginning (problem statement) and recent messages
             lines = conversation_history.split('\n')
-            # Keep first 20 lines (problem setup) and last 50 lines (recent conversation)
             if len(lines) > 70:
                 truncated_history = '\n'.join(lines[:20] + ['...[conversation truncated]...'] + lines[-50:])
             else:
                 truncated_history = conversation_history[:max_history_length]
         else:
             truncated_history = conversation_history
+        
+        # Combine all context
+        full_context = f"Problem: {problem}\n\n{memory_context}{truncated_history}\n\nProvide a concise response (max 500 words):"
             
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": f"Problem: {problem}\n\n{truncated_history}\n\nProvide a concise response (max 500 words):"}
+                {"role": "user", "content": full_context}
             ],
             temperature=0,
-            max_tokens=500  # Reduce max tokens to keep responses shorter
+            max_tokens=500
         )
-        return response.choices[0].message.content
+        
+        generated_response = response.choices[0].message.content
+        
+        # Store response in memory for future reference
+        if self.memory_manager:
+            response_key = f"response_{self.step_count}"
+            self.store_memory(response_key, {
+                'content': generated_response,
+                'problem_context': problem[:200],  # Store partial problem context
+                'step': self.step_count
+            })
+        
+        return generated_response
         
     
     def act(self, communication_module: Union[Blackboard, DirectCommunication, PubSubCommunicator], problem: str) -> str:
         """
         Agent's main action: read messages, generate response, post message
-        Works with Blackboard, DirectCommunication, and PubSubCommunicator modules
+        Enhanced with memory usage
         """
+        # Store current problem in memory
+        if self.memory_manager:
+            self.store_memory("current_problem", problem)
+            self.store_memory(f"step_{self.step_count}", {"action": "starting_turn"})
+        
         # Register agent and handle specific communication module setup
         if isinstance(communication_module, DirectCommunication):
             communication_module.register_agent(self.agent_id)
@@ -71,6 +138,10 @@ class Agent:
         else:
             # Blackboard - get all messages
             conversation_history = communication_module.get_conversation_history()
+        
+        # Store conversation history in memory
+        if self.memory_manager:
+            self.store_memory("last_conversation", conversation_history[-1000:])  # Store last 1000 chars
         
         # Generate response using LLM
         response = self.generate_response(problem, conversation_history)
@@ -94,6 +165,15 @@ class Agent:
                 content=response,
                 message_type="response"
             )
+        
+        # Update step count and store completion
+        self.step_count += 1
+        if self.memory_manager:
+            self.store_memory(f"step_{self.step_count-1}", {
+                "action": "completed_turn", 
+                "message_id": message_id,
+                "response_length": len(response)
+            })
         
         return message_id
     
