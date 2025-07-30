@@ -2,7 +2,7 @@ from enum import Enum
 from typing import List, Optional
 from .blackboard import Blackboard
 from src.message import Message
-
+from .direct_communication import DirectMessenger
 
 class CommunicationMode(Enum):
     """Enumeration for different communication modes"""
@@ -20,7 +20,7 @@ class CommunicationManager:
         
         # Create instances of all concrete communicators
         self.blackboard_impl = Blackboard()
-        # self.direct_impl = DirectMessenger()
+        self.direct_impl = DirectMessenger()
         # self.pubsub_impl = PubSubCommunicator()
         
         # Set current communicator based on mode
@@ -43,14 +43,15 @@ class CommunicationManager:
     
     def send(self, message: Message) -> bool:
         """Send message using current communicator and log it"""
-        success = self.current_communicator.send(message=message , 
-            agent_id=message.agent_id, 
-            agent_role=message.agent_role, 
-            content=message.content, 
-            message_type=message.message_type, 
-            metadata=message.metadata)
+        success = self.current_communicator.send(message=message
+            # agent_id=message.agent_id, 
+            # agent_role=message.agent_role, 
+            # content=message.content, 
+            # message_type=message.message_type, 
+            # metadata=message.metadata)
         # if success:
-        #     self._log_message(message)
+        #     self._log_message(message
+        )
         return success
     
     def receive(self, agent_id: str) -> List[Message]:

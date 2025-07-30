@@ -108,6 +108,7 @@ class Agent:
         """
         message = create_message(
             sender_id=self.agent_id,
+            sender_role=self.role,
             recipient_id=recipient_id,
             topic=topic,
             content=f"[{self.role}]: {content}"
