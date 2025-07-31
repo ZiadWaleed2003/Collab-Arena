@@ -1,3 +1,4 @@
+from typing import Any
 from src.CommunicationModule.communication_manager import CommunicationManager, create_message
 from src.clients import get_llm_client, get_llm
 from src.MemoryModule.memory_manager import MemoryManager
@@ -111,6 +112,18 @@ class Agent:
             # Store important messages in memory for team context
             self._store_messages_to_memory(recent_messages, problem)
             
+
+            # Store action event in short-term memory
+            action_event = {
+                "type": "action",
+                "content": f"Processing problem: {problem[:100]}...",
+                "message_count": len(recent_messages),
+                "step": self.step_count
+            }
+            self.add_to_short_term_memory(action_event)
+            
+            # Update local context (kept for backward compatibility)
+            # self.conversation_context.extend(recent_messages)
             
             # Use memory-enhanced context instead of just local context
             memory_enhanced_context = self._get_enhanced_context(recent_messages)
@@ -176,17 +189,30 @@ class Agent:
         return history
     
     def _get_memory_context(self) -> str:
-        """Get relevant context from shared memory"""
+        """Get relevant context from shared memory and short-term memory"""
         try:
-            memory_keys = self.memory_manager.get_memory_keys()
-            if not memory_keys:
-                return ""
-            
             context_parts = []
-            for key in memory_keys[-10:]:  # Get last 10 memory entries
-                value = self.memory_manager.get_value(key, self.agent_id)
-                if value:
-                    context_parts.append(f"{key}: {value}")
+            
+            # Get shared memory context (team-wide knowledge)
+            memory_keys = self.memory_manager.get_memory_keys()
+            if memory_keys:
+                context_parts.append("=== SHARED TEAM MEMORY ===")
+                for key in memory_keys[-5:]:  # Get last 5 shared memory entries
+                    value = self.memory_manager.get_value(key, self.agent_id)
+                    if value:
+                        context_parts.append(f"{key}: {str(value)[:100]}...")  # Truncate for brevity
+            
+            # Get short-term memory context (recent personal events)
+            recent_events = self.get_recent_short_term_events(5)
+            if recent_events:
+                context_parts.append("\n=== RECENT PERSONAL EVENTS ===")
+                for event in recent_events:
+                    if isinstance(event, dict):
+                        event_type = event.get('type', 'event')
+                        content = event.get('content', str(event))
+                        context_parts.append(f"[{event_type.upper()}] {str(content)[:80]}...")
+                    else:
+                        context_parts.append(f"[EVENT] {str(event)[:80]}...")
             
             return "\n".join(context_parts) if context_parts else ""
         except Exception as e:
@@ -194,7 +220,7 @@ class Agent:
             return ""
     
     def _store_insights_to_memory(self, response_content: str, problem: str):
-        """Store important insights from response to shared memory"""
+        """Store important insights from response to shared memory and short-term memory"""
         try:
             # Create a memory key based on role and timestamp
             import time
@@ -210,7 +236,18 @@ class Agent:
                 "timestamp": timestamp
             }
             
+            # Store in shared memory for team access
             self.memory_manager.write(memory_key, insight_data, self.agent_id)
+            
+            # Also store in short-term memory for quick access
+            short_term_event = {
+                "type": "insight",
+                "content": response_content[:200],  # Shorter for short-term
+                "problem": problem[:100],
+                "timestamp": timestamp
+            }
+            self.add_to_short_term_memory(short_term_event)
+            
         except Exception as e:
             print(f"Error storing insights to memory for {self.agent_id}: {e}")
     
@@ -283,6 +320,31 @@ class Agent:
     def get_memory_state(self) -> dict:
         """Get current memory state"""
         return self.memory_manager.get_memory_state()
+    
+    # Short-term memory methods
+    def add_to_short_term_memory(self, event: Any) -> bool:
+        """Add an event to agent's short-term memory"""
+        return self.memory_manager.add_short_term_event(self.agent_id, event)
+    
+    def get_recent_short_term_events(self, limit: int = 10) -> list:
+        """Get recent events from short-term memory"""
+        return self.memory_manager.get_recent_events(self.agent_id, limit)
+    
+    def get_recent_events_with_metadata(self, limit: int = 10) -> list:
+        """Get recent events with metadata from short-term memory"""
+        return self.memory_manager.get_recent_events_with_metadata(self.agent_id, limit)
+    
+    def clear_short_term_memory(self) -> bool:
+        """Clear agent's short-term memory"""
+        return self.memory_manager.clear_short_term_memory(self.agent_id)
+    
+    def get_short_term_memory_info(self) -> dict:
+        """Get short-term memory information"""
+        return self.memory_manager.get_short_term_memory_info(self.agent_id)
+    
+    def get_short_term_memory_size(self) -> int:
+        """Get current size of short-term memory"""
+        return self.memory_manager.get_short_term_memory_size(self.agent_id)
 
     def _determine_topic(self, response_content: str) -> str:
         """
