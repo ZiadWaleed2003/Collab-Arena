@@ -16,6 +16,14 @@ class Agent:
         self.step_count = 0
         self.client = get_llm_client()
         self.model = get_llm()
+
+        # Just to for calculating token usage
+        self.token_usage = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "api_calls": 0
+        }
         
         # Memory integration
         self.memory_manager = memory_manager or MemoryManager()
@@ -23,6 +31,10 @@ class Agent:
         
         # Original conversation context - kept for backward compatibility
         self.conversation_context = []  # Keep local context for better LLM responses
+
+    def get_id(self) -> str:
+        """Get agent's unique ID"""
+        return self.agent_id
     
     def generate_response(self, problem: str, recent_messages: list) -> str:
         """
@@ -62,6 +74,13 @@ class Agent:
 
             print("="*80)
             print(f"[{self.agent_id}] Generated response: {content}")
+
+            # Track token usage
+            if hasattr(response, 'usage'):
+                self.token_usage["input_tokens"] += response.usage.prompt_tokens
+                self.token_usage["output_tokens"] += response.usage.completion_tokens
+                self.token_usage["total_tokens"] += response.usage.total_tokens
+                self.token_usage["api_calls"] += 1
             
             # Handle None or empty responses
             if content is None or content.strip() == "":
@@ -75,6 +94,10 @@ class Agent:
         except Exception as e:
             print(f"Error generating response for {self.agent_id}: {e}")
             return f"[{self.role}] I encountered an error while processing. Please try again."
+        
+    # just a simple func to return the current token usage stats    
+    def get_token_stats(self) -> dict:
+        return self.token_usage.copy()
     
     def act(self, comm_manager: CommunicationManager, problem: str, recipient_id: str = "all") -> str:
         """
@@ -89,6 +112,7 @@ class Agent:
             # Store important messages in memory for team context
             self._store_messages_to_memory(recent_messages, problem)
             
+
             # Store action event in short-term memory
             action_event = {
                 "type": "action",
@@ -103,10 +127,6 @@ class Agent:
             
             # Use memory-enhanced context instead of just local context
             memory_enhanced_context = self._get_enhanced_context(recent_messages)
-            
-            # Keep only recent context to prevent memory bloat (original logic preserved)
-            # if len(self.conversation_context) > 20:
-            #     self.conversation_context = self.conversation_context[-20:]
             
             # Generate response with memory-enhanced context
             response = self.generate_response(problem, memory_enhanced_context)
@@ -145,6 +165,7 @@ class Agent:
         """
         message = create_message(
             sender_id=self.agent_id,
+            sender_role=self.role,
             recipient_id=recipient_id,
             topic=topic,
             content=f"[{self.role}]: {content}"

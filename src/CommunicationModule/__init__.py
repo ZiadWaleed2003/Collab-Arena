@@ -1,11 +1,10 @@
 from .blackboard import Blackboard
-from .direct_communication import DirectCommunication
+from .direct_communication import DirectMessenger
 from .pubsub_communication import PubSubCommunicator
-from .communication_factory import CommunicationFactory, create_communication
 
 __all__ = [
     'Blackboard',
-    'DirectCommunication',
+    'DirectMessenger',
     'PubSubCommunicator',
     'CommunicationFactory',
     'create_communication'
