@@ -30,6 +30,10 @@ class Agent:
         
         # Original conversation context - kept for backward compatibility
         self.conversation_context = []  # Keep local context for better LLM responses
+
+    def get_id(self) -> str:
+        """Get agent's unique ID"""
+        return self.agent_id
     
     def generate_response(self, problem: str, recent_messages: list) -> str:
         """

@@ -11,7 +11,8 @@ class DirectMessenger(BaseCommunicator):
     
     def register_agent(self, agent) -> bool:
         """Register an agent and create their message queue"""
-        agent_id = getattr(agent, 'id', str(agent))
+        agent_id = agent.get_id()
+
         if agent_id not in self.agents:
             self.agents[agent_id] = agent
             self.message_queues[agent_id] = []
@@ -21,6 +22,14 @@ class DirectMessenger(BaseCommunicator):
     def send(self, message: Message) -> bool:
         """Send direct message to specific recipient"""
         try:
+
+            if message.recipient_id == "all":
+                # Broadcast to all agents
+                for agent_id in self.message_queues:
+                    self.message_queues[agent_id].append(message)
+                    self.message_log.append(message)
+                return True
+            # Send to specific recipient
             if message.recipient_id in self.message_queues:
                 self.message_queues[message.recipient_id].append(message)
                 self.message_log.append(message)

@@ -1,0 +1,213 @@
+{
+  "case_info": {
+    "id": "math_001",
+    "problem": "A company has 3 factories producing widgets. Factory A produces 100 widgets/day, Factory B produces 150 widgets/day, and Factory C produces 200 widgets/day. If the company needs to produce 10,000 widgets in the minimum number of days, how should they allocate production?",
+    "domain": "optimization",
+    "difficulty": "medium"
+  },
+  "messages": [
+    {
+      "sender_id": "coordinator",
+      "recipient_id": "unknown",
+      "topic": "general",
+      "content": "[Team Coordinator]: To produce **10,000 widgets** in the **minimum number of days**, the company should maximize daily output by utilizing all three factories (A, B, and C) every day until the final day, then adjust production to avoid overage. Here's the breakdown:\n\n1. **Daily Production**:  \n   - Combined output: **100 (A) + 150 (B) + 200 (C) = 450 widgets/day**.\n\n2. **Full Days of Production**:  \n   - After **22 days**:  \n     $ 22 \\text{ days} \\times 450 \\text{ widgets/day} = 9,900 \\text{ widgets} $.  \n   - Remaining widgets needed:  \n     $ 10,000 - 9,900 = 100 \\text{ widgets} $.\n\n3. **Final Day Adjustment**:  \n   - On **day 23**, operate **only Factory A** (100 widgets/day) to produce the remaining 100 widgets.  \n   - This avoids overproduction (e.g., using all factories on day 23 would result in 450 extra widgets).\n\n**Total Time Required**: **23 days** (22 full days + 1 partial day).  \n\n**Key Insight**:  \nMaximizing daily output by using all factories until the final day ensures the fastest progress toward the target. Adjusting the last day to match the exact remaining quantity minimizes waste and time. No alternative allocation (e.g., idling factories earlier) reduces the total days below 23.",
+      "timestamp": "2025-07-31T11:35:55.439829",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "implementer",
+      "recipient_id": "unknown",
+      "topic": "general",
+      "content": "[Solution Implementer]: To produce **10,000 widgets** in the **minimum number of days (23 days)**, the company should follow this allocation strategy:\n\n1. **Maximize Daily Output for 22 Days**:  \n   - Operate **all three factories (A, B, and C)** simultaneously for **22 full days**.  \n   - Daily combined output: **450 widgets** (100 + 150 + 200).  \n   - Total production after 22 days: **9,900 widgets** (22 \u00d7 450).  \n\n2. **Final Day Adjustment**:  \n   - On **Day 23**, produce the remaining **100 widgets** using **Factory A alone** (which produces exactly 100/day).  \n   - This avoids overproduction and ensures the target is met precisely.  \n\n**Why this works**:  \n- Using all factories until the final day maximizes daily output, minimizing the total days required.  \n- After 22 days, only 100 widgets remain, which Factory A can produce in one day without requiring additional resources or time.  \n- Alternative strategies (e.g., idling factories earlier) would reduce daily output, increasing the total days needed.  \n\n**Result**:  \n- **Total days**: 22 full days + 1 final day = **23 days**.  \n- **Efficiency**: No overproduction, full utilization of high-output factories until the end.",
+      "timestamp": "2025-07-31T11:37:17.814069",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "specialist",
+      "recipient_id": "unknown",
+      "topic": "status_update",
+      "content": "[Domain Specialist]: Update: Domain Specialist completed analysis",
+      "timestamp": "2025-07-31T11:36:37.985307",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "implementer",
+      "recipient_id": "unknown",
+      "topic": "status_update",
+      "content": "[Solution Implementer]: Update: Solution Implementer completed analysis",
+      "timestamp": "2025-07-31T11:37:17.814101",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "analyst",
+      "recipient_id": "unknown",
+      "topic": "analysis",
+      "content": "[Problem Analyst]: To minimize the number of days required to produce 10,000 widgets, the company should maximize daily production by utilizing all three factories every day until the target is nearly met, then adjust the final day's production to avoid overproduction. Here's the breakdown:\n\n1. **Daily Production**:  \n   - Combined output per day = 100 (A) + 150 (B) + 200 (C) = **450 widgets/day**.\n\n2. **Initial Calculation**:  \n   - Total widgets after 22 days = 22 \u00d7 450 = **9,900 widgets**.  \n   - Remaining widgets needed = 10,000 \u2212 9,900 = **100 widgets**.\n\n3. **Final Day Adjustment**:  \n   - On day 23, produce only the remaining 100 widgets. Since Factory A produces exactly 100/day, it can operate alone on day 23. Factories B and C are idle on day 23.\n\n4. **Allocation Summary**:  \n   - **Factory A**: 23 days \u00d7 100 = **2,300 widgets**.  \n   - **Factory B**: 22 days \u00d7 150 = **3,300 widgets**.  \n   - **Factory C**: 22 days \u00d7 200 = **4,400 widgets**.  \n   - **Total**: 2,300 + 3,300 + 4,400 = **10,000 widgets**.\n\n5. **Result**:  \n   - **Minimum days required**: **23 days**.  \n   - This approach avoids overproduction (e.g., 23 full days of all factories would yield 10,350 widgets) while ensuring the target is met exactly.\n\n**Answer**: Run all three factories for 22 days and Factory A alone on the 23rd day, completing production in **23 days**.",
+      "timestamp": "2025-07-31T11:27:56.457125",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "coordinator",
+      "recipient_id": "unknown",
+      "topic": "general",
+      "content": "[Team Coordinator]: The optimal strategy to produce 10,000 widgets in the minimum number of days involves maximizing daily output by utilizing all factories until the final day, then adjusting production to avoid overage. Here's the breakdown:\n\n1. **Daily Production**:  \n   - Combined output: 100 (A) + 150 (B) + 200 (C) = **450 widgets/day**.\n\n2. **Initial Full Days**:  \n   - After 22 days: 22 \u00d7 450 = **9,900 widgets**.  \n   - Remaining: 10,000 \u2212 9,900 = **100 widgets**.\n\n3. **Final Day Adjustment**:  \n   - Factory A alone produces the remaining 100 widgets on day 23. Factories B and C are idle.\n\n4. **Allocation Summary**:  \n   - **Factory A**: 23 days \u00d7 100 = **2,300 widgets**.  \n   - **Factory B**: 22 days \u00d7 150 = **3,300 widgets**.  \n   - **Factory C**: 22 days \u00d7 200 = **4,400 widgets**.  \n   - **Total**: 10,000 widgets.\n\n5. **Result**:  \n   - **Minimum days required**: **23 days**.  \n   - This avoids overproduction (e.g., 23 full days would yield 10,350 widgets) while meeting the target exactly.\n\n**Answer**: Run all three factories for 22 days and Factory A alone on the 23rd day, completing production in **23 days**.",
+      "timestamp": "2025-07-31T11:28:52.442217",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "specialist",
+      "recipient_id": "unknown",
+      "topic": "general",
+      "content": "[Domain Specialist]: The optimal strategy to produce 10,000 widgets in the minimum number of days involves maximizing daily output by utilizing all factories until the final day, then adjusting production to avoid overage. Here's the breakdown:\n\n1. **Daily Production**:  \n   - Combined output: 100 (A) + 150 (B) + 200 (C) = **450 widgets/day**.\n\n2. **Initial Full Days**:  \n   - After 22 days: 22 \u00d7 450 = **9,900 widgets**.  \n   - Remaining: 10,000 \u2212 9,900 = **100 widgets**.\n\n3. **Final Day Adjustment**:  \n   - Factory A alone produces the remaining 100 widgets on day 23. Factories B and C are idle.\n\n4. **Allocation Summary**:  \n   - **Factory A**: 23 days \u00d7 100 = **2,300 widgets**.  \n   - **Factory B**: 22 days \u00d7 150 = **3,300 widgets**.  \n   - **Factory C**: 22 days \u00d7 200 = **4,400 widgets**.  \n   - **Total**: 10,000 widgets.\n\n5. **Result**:  \n   - **Minimum days required**: **23 days**.  \n   - This avoids overproduction (e.g., 23 full days would yield 10,350 widgets) while meeting the target exactly.\n\n**Answer**: Run all three factories for 22 days and Factory A alone on the 23rd day, completing production in **23 days**.",
+      "timestamp": "2025-07-31T11:29:52.445371",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "specialist",
+      "recipient_id": "unknown",
+      "topic": "status_update",
+      "content": "[Domain Specialist]: Update: Domain Specialist completed analysis",
+      "timestamp": "2025-07-31T11:29:52.445411",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "implementer",
+      "recipient_id": "unknown",
+      "topic": "general",
+      "content": "[Solution Implementer]: The optimal strategy to produce 10,000 widgets in the minimum number of days (23 days) involves maximizing daily output by operating all factories until the final day, then adjusting production to avoid overage. Here's the concise breakdown:\n\n1. **Daily Production**:  \n   - Combined output: 100 (A) + 150 (B) + 200 (C) = **450 widgets/day**.\n\n2. **Initial Full Days**:  \n   - After 22 days: 22 \u00d7 450 = **9,900 widgets**.  \n   - Remaining: 10,000 \u2212 9,900 = **100 widgets**.\n\n3. **Final Day Adjustment**:  \n   - Factory A alone produces the remaining 100 widgets on day 23. Factories B and C are idle to prevent overproduction (e.g., running all factories for 23 days would yield 10,350 widgets, exceeding the target by 350).\n\n4. **Allocation Summary**:  \n   - **Factory A**: 23 days \u00d7 100 = **2,300 widgets**.  \n   - **Factory B**: 22 days \u00d7 150 = **3,300 widgets**.  \n   - **Factory C**: 22 days \u00d7 200 = **4,400 widgets**.  \n   - **Total**: 10,000 widgets.\n\n5. **Result**:  \n   - **Minimum days required**: **23 days**.  \n   - This approach ensures exact production of 10,000 widgets without waste, leveraging the high-output factories (B and C) for 22 days and relying on Factory A alone for the final day.\n\n**Answer**: Run all three factories for 22 days and Factory A alone on the 23rd day, completing production in **23 days**.",
+      "timestamp": "2025-07-31T11:30:41.098334",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "implementer",
+      "recipient_id": "unknown",
+      "topic": "status_update",
+      "content": "[Solution Implementer]: Update: Solution Implementer completed analysis",
+      "timestamp": "2025-07-31T11:30:41.098369",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "analyst",
+      "recipient_id": "unknown",
+      "topic": "general",
+      "content": "[Problem Analyst]: To determine the minimum number of days required to produce **10,000 widgets**, we analyze the factories' combined output and optimize their usage:\n\n### **Step 1: Maximize Daily Production**\n- **Factory A**: 100 widgets/day  \n- **Factory B**: 150 widgets/day  \n- **Factory C**: 200 widgets/day  \n- **Total daily output (all factories)**:  \n  $100 + 150 + 200 = 450$ widgets/day  \n\n### **Step 2: Calculate Production Over Full Days**\n- **After 22 days**:  \n  $22 \\text{ days} \\times 450 \\text{ widgets/day} = 9,900$ widgets  \n- **Remaining widgets needed**:  \n  $10,000 - 9,900 = 100$ widgets  \n\n### **Step 3: Final Day Adjustment**\n- On the **23rd day**, produce the remaining **100 widgets** using **Factory A alone** (its daily capacity).  \n- This avoids overproduction and ensures the exact target is met.  \n\n### **Result**\n- **Minimum days required**: **23 days**  \n- **Allocation**:  \n  - **Days 1\u201322**: All three factories operate (450 widgets/day).  \n  - **Day 23**: Only Factory A operates (100 widgets).  \n\nThis strategy minimizes days by leveraging maximum daily output until the final day, then adjusts production to avoid waste. No alternative allocation reduces the total days below 23.  \n\n**Answer**: Run all factories for 22 days and Factory A alone on the 23rd day, completing production in **23 days**.",
+      "timestamp": "2025-07-31T11:31:56.443575",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "coordinator",
+      "recipient_id": "unknown",
+      "topic": "general",
+      "content": "[Team Coordinator]: The company should allocate production as follows to minimize days:  \n\n1. **Maximize Daily Output**:  \n   - All factories operate simultaneously until the final day.  \n   - Combined daily output: **450 widgets/day** (100 + 150 + 200).  \n\n2. **Full Days of Production**:  \n   - After **22 days**: 22 \u00d7 450 = **9,900 widgets**.  \n   - Remaining widgets: 10,000 \u2212 9,900 = **100 widgets**.  \n\n3. **Final Day Adjustment**:  \n   - On day 23, operate **only Factory A** (100 widgets/day) to produce the remaining 100 widgets.  \n\n**Total Time Required**: **23 days**.  \n\n**Why This Works**:  \n- Using all factories for 22 days ensures maximum output (9,900 widgets).  \n- Factory A alone completes the remaining 100 widgets on day 23, avoiding overproduction.  \n- Any alternative allocation (e.g., idling a factory earlier) would reduce daily output and increase total days.  \n\n**Answer**: 23 days, with all factories running for 22 days and only Factory A on the final day.",
+      "timestamp": "2025-07-31T11:32:29.221686",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "specialist",
+      "recipient_id": "unknown",
+      "topic": "general",
+      "content": "[Domain Specialist]: To produce 10,000 widgets in the minimum number of days, the company should **maximize daily output** by operating all three factories (A, B, and C) simultaneously until the final day, then adjust production to avoid overage. Here's the breakdown:\n\n1. **Daily Combined Output**:  \n   - Factory A: 100 widgets/day  \n   - Factory B: 150 widgets/day  \n   - Factory C: 200 widgets/day  \n   - **Total**: $100 + 150 + 200 = 450$ widgets/day  \n\n2. **Full Days of Operation**:  \n   - After 22 days: $22 \\times 450 = 9,900$ widgets  \n   - Remaining widgets: $10,000 - 9,900 = 100$  \n\n3. **Final Day Adjustment**:  \n   - On day 23, only **Factory A** (100 widgets/day) is needed to produce the remaining 100 widgets.  \n   - Factories B and C are idle on day 23 to avoid overproduction.  \n\n**Total Days Required**: $22 + 1 = 23$ days  \n\n**Allocation Summary**:  \n- **Days 1\u201322**: All factories (A, B, C) operate at full capacity.  \n- **Day 23**: Only Factory A operates to meet the final 100-widget requirement.  \n\nThis strategy ensures the company meets the target in **23 days**, minimizing time while avoiding unnecessary production.",
+      "timestamp": "2025-07-31T11:33:37.115467",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "specialist",
+      "recipient_id": "unknown",
+      "topic": "status_update",
+      "content": "[Domain Specialist]: Update: Domain Specialist completed analysis",
+      "timestamp": "2025-07-31T11:33:37.115486",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "implementer",
+      "recipient_id": "unknown",
+      "topic": "general",
+      "content": "[Solution Implementer]: To produce **10,000 widgets** in the **minimum number of days (23 days)**, the company should follow this allocation strategy:\n\n1. **Maximize Daily Output for 22 Days**:  \n   - Operate **all three factories (A, B, and C)** simultaneously for **22 full days**.  \n   - Daily combined output: **450 widgets** (100 + 150 + 200).  \n   - Total production after 22 days: **9,900 widgets** (22 \u00d7 450).  \n\n2. **Final Day Adjustment**:  \n   - On **Day 23**, produce the remaining **100 widgets** using **Factory A alone**.  \n   - This avoids overproduction (e.g., using Factory B or C would exceed the target by 50\u2013100 widgets).  \n\n**Total Time**: **23 days** (22 full days + 1 final day with partial production).  \n\n**Key Insight**:  \nRunning all factories until the last day maximizes efficiency, while adjusting on the final day ensures the exact target is met without waste. This approach minimizes days by leveraging the highest possible daily output (450 widgets) and fine-tuning the final day\u2019s production.",
+      "timestamp": "2025-07-31T11:34:12.264223",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "implementer",
+      "recipient_id": "unknown",
+      "topic": "status_update",
+      "content": "[Solution Implementer]: Update: Solution Implementer completed analysis",
+      "timestamp": "2025-07-31T11:34:12.264267",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "analyst",
+      "recipient_id": "unknown",
+      "topic": "general",
+      "content": "[Problem Analyst]: To produce **10,000 widgets** in the **minimum number of days (23 days)**, the company should follow this allocation strategy:\n\n1. **Maximize Daily Output for 22 Days**:  \n   - Operate **all three factories (A, B, and C)** simultaneously for **22 days**.  \n   - Combined daily output:  \n     $100 + 150 + 200 = 450$ widgets/day.  \n   - Total production after 22 days:  \n     $22 \\times 450 = 9,900$ widgets.  \n\n2. **Final Day Adjustment**:  \n   - On **day 23**, produce the remaining **100 widgets** using **Factory A alone**.  \n   - This avoids overproduction while meeting the target exactly.  \n\n**Why 23 Days?**  \n- Running all factories until the final day ensures maximum efficiency.  \n- After 22 days, only **100 widgets remain**, which Factory A can produce in **1 day**.  \n- Using other factories on day 23 (e.g., B or C) would exceed the target (e.g., 150 or 200 widgets), leading to unnecessary overproduction.  \n\n**Result**:  \n- **Total days**: 23.  \n- **Total widgets**: $9,900 + 100 = 10,000$.  \n\nThis strategy minimizes days while strictly meeting the production goal.",
+      "timestamp": "2025-07-31T11:35:09.707494",
+      "message_type": "response"
+    },
+    {
+      "sender_id": "specialist",
+      "recipient_id": "unknown",
+      "topic": "general",
+      "content": "[Domain Specialist]: To produce **10,000 widgets** in the **minimum number of days**, the company should **maximize daily output** by operating all three factories (A, B, and C) simultaneously until the final day, then adjust production to avoid overage. Here's the breakdown:\n\n1. **Daily Combined Output**:  \n   - Factory A: 100 widgets/day  \n   - Factory B: 150 widgets/day  \n   - Factory C: 200 widgets/day  \n   - **Total**: $100 + 150 + 200 = 450$ widgets/day  \n\n2. **Full Days of Operation**:  \n   - After 22 days: $22 \\times 450 = 9,900$ widgets.  \n   - Remaining: $10,000 - 9,900 = 100$ widgets.  \n\n3. **Final Day Adjustment**:  \n   - On day 23, operate **only Factory A** (100 widgets/day) to fulfill the remaining 100 widgets.  \n   - Total time: **23 days** (22 full days + 1 partial day).  \n\n**Why this works**:  \n- Using all factories daily ensures the highest possible output (450 widgets/day), minimizing the number of full days required.  \n- On the final day, Factory A alone produces the exact remaining quantity (100 widgets), avoiding overproduction.  \n- Alternative allocations (e.g., skipping factories earlier or using partial-day operations) would either reduce daily output (increasing total days) or cause overproduction.  \n\n**Final Allocation**:  \n- **Days 1\u201322**: All factories (A, B, C) operate daily.  \n- **Day 23**: Only Factory A operates.  \n\nThis strategy guarantees **10,000 widgets in 23 days**, the theoretical minimum.",
+      "timestamp": "2025-07-31T11:36:37.985292",
+      "message_type": "response"
+    }
+  ],
+  "statistics": {
+    "communication_stats": {
+      "total_messages": 18,
+      "registered_agents": 4,
+      "communication_mode": "DIRECT_MESSENGER",
+      "agents": [
+        "analyst",
+        "coordinator",
+        "specialist",
+        "implementer"
+      ],
+      "message_queues": 4,
+      "messages_sent_per_agent": {
+        "coordinator": 3,
+        "implementer": 6,
+        "specialist": 6,
+        "analyst": 3
+      },
+      "messages_received_per_agent": {
+        "unknown": 18
+      }
+    },
+    "token_usage_stats": {
+      "total_tokens_used": 31244,
+      "total_api_calls": 12,
+      "average_tokens_per_call": 2603.6666666666665,
+      "token_usage_per_agent": {
+        "analyst": {
+          "input_tokens": 2852,
+          "output_tokens": 6078,
+          "total_tokens": 8930,
+          "api_calls": 3
+        },
+        "coordinator": {
+          "input_tokens": 3836,
+          "output_tokens": 3355,
+          "total_tokens": 7191,
+          "api_calls": 3
+        },
+        "specialist": {
+          "input_tokens": 3683,
+          "output_tokens": 4217,
+          "total_tokens": 7900,
+          "api_calls": 3
+        },
+        "implementer": {
+          "input_tokens": 4197,
+          "output_tokens": 3026,
+          "total_tokens": 7223,
+          "api_calls": 3
+        }
+      }
+    },
+    "efficiency_metrics": {
+      "tokens_per_message": 1735.7777777777778,
+      "messages_per_token": 0.0005761106132377416,
+      "communication_efficiency_score": 0.057611061323774165
+    }
+  }
+}
