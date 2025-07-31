@@ -25,6 +25,15 @@ class CommunicationManager:
         
         # Set current communicator based on mode
         self.current_communicator = self.create_communicator(mode)
+
+        # some Tracking stats for communication
+        self.communication_stats = {
+            "messages_sent": 0,
+            "messages_received": 0,
+            "total_message_length": 0,
+            "unique_senders": set(),
+            "unique_topics": set()
+        }
     
     def create_communicator(self, mode: CommunicationMode):
         """Factory method to get the appropriate communicator"""
@@ -44,8 +53,13 @@ class CommunicationManager:
     def send(self, message: Message) -> bool:
         """Send message using current communicator and log it"""
         success = self.current_communicator.send(message=message)
-        # if success:
-        #     self._log_message(message)
+
+        if success:
+            self.communication_stats["messages_sent"] += 1
+            self.communication_stats["total_message_length"] += len(message.content)
+            self.communication_stats["unique_senders"].add(message.agent_id)
+            self.communication_stats["unique_topics"].add(message.metadata.get("topic", "general"))
+            #self._log_message(message)
         return success
     
     def receive(self, agent_id: str) -> List[Message]:
