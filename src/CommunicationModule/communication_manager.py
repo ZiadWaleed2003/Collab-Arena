@@ -43,15 +43,9 @@ class CommunicationManager:
     
     def send(self, message: Message) -> bool:
         """Send message using current communicator and log it"""
-        success = self.current_communicator.send(message=message
-            # agent_id=message.agent_id, 
-            # agent_role=message.agent_role, 
-            # content=message.content, 
-            # message_type=message.message_type, 
-            # metadata=message.metadata)
+        success = self.current_communicator.send(message=message)
         # if success:
-        #     self._log_message(message
-        )
+        #     self._log_message(message)
         return success
     
     def receive(self, agent_id: str) -> List[Message]:
