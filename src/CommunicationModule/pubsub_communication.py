@@ -1,216 +1,109 @@
-from datetime import datetime
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Set
+
+from .base_communicator import BaseCommunicator
 from ..message import Message
 
 
-class PubSubCommunicator:
-    """
-    Publication/Subscription communication system where agents subscribe to topics
-    and receive messages published to those topics
-    """
+
+
+class PubSubCommunicator(BaseCommunicator):
+    """Publish-Subscribe communication with topic-based messaging"""
+    
     def __init__(self):
-        self.message_counter = 0
-        self.message_queues: Dict[str, List[Message]] = {}  # agent_id -> list of messages
+        super().__init__()
+        self.message_queues: Dict[str, List[Message]] = {}
         self.topics: Dict[str, Set[str]] = {}  # topic -> set of subscribed agent_ids
-        self.all_messages: List[Message] = []  # For conversation history
-        self.registered_agents: List[str] = []
-        self.agent_subscriptions: Dict[str, Set[str]] = {}  # agent_id -> set of topics
     
-    def register_agent(self, agent_id: str):
-        """Register an agent for pub-sub communication"""
-        if agent_id not in self.registered_agents:
-            self.registered_agents.append(agent_id)
+    def register_agent(self, agent) -> bool:
+        """Register an agent and create their message queue"""
+        agent_id = agent.get_id()
+        if agent_id not in self.agents:
+            self.agents[agent_id] = agent
             self.message_queues[agent_id] = []
-            self.agent_subscriptions[agent_id] = set()
+            return True
+        return False
     
-    def unregister_agent(self, agent_id: str):
-        """Unregister an agent and remove from all subscriptions"""
-        if agent_id in self.registered_agents:
-            self.registered_agents.remove(agent_id)
+    def send(self, message: Message) -> bool:
+        """Publish message to all subscribers of the topic"""
+        try:
+            # Extract topic from your Message structure
+            topic = self._get_topic_from_message(message)
             
-            # Remove from all topic subscriptions
-            if agent_id in self.agent_subscriptions:
-                for topic in self.agent_subscriptions[agent_id].copy():
-                    self.unsubscribe(agent_id, topic)
-                del self.agent_subscriptions[agent_id]
-            
-            # Remove message queue
-            if agent_id in self.message_queues:
-                del self.message_queues[agent_id]
-    
-    def send(self, message: Message):
-        """
-        Send a message to all subscribers of the message's topic
-        Topic is determined from message metadata
-        """
-        topic = message.metadata.get('topic', 'default')
-        
-        # Deliver to all subscribers of this topic
-        if topic in self.topics:
-            for subscriber_id in self.topics[topic]:
-                self._deliver_to_agent(subscriber_id, message)
-        
-        # Add to conversation history
-        self.all_messages.append(message)
-    
-    def publish_message(self, agent_id: str, agent_role: str, content: str, 
-                       topic: str, message_type: str = "response", 
-                       metadata: Dict = None) -> str:
-        """Publish a message to a specific topic"""
-        self.message_counter += 1
-        message_id = f"msg_{self.message_counter:04d}"
-        
-        # Add topic to metadata
-        pub_metadata = metadata or {}
-        pub_metadata.update({
-            'topic': topic,
-            'communication_type': 'pubsub'
-        })
-        
-        message = Message(
-            id=message_id,
-            agent_id=agent_id,
-            agent_role=agent_role,
-            content=content,
-            timestamp=datetime.now(),
-            message_type=message_type,
-            metadata=pub_metadata
-        )
-        
-        self.send(message)
-        return message_id
+            if topic in self.topics:
+                subscribers = self.topics[topic]
+                for subscriber_id in subscribers:
+                    if subscriber_id != message.agent_id:  # Don't send to sender (using agent_id)
+                        self.message_queues[subscriber_id].append(message)
+                
+                self.message_log.append(message)
+                return True
+            else:
+                print(f"No subscribers for topic: {topic}")
+                return False
+        except Exception as e:
+            print(f"Error publishing message: {e}")
+            return False
     
     def receive(self, agent_id: str) -> List[Message]:
-        """Get new messages for an agent (consume messages from queue)"""
+        """Get messages from agent's subscription queue"""
         if agent_id not in self.message_queues:
-            self.register_agent(agent_id)
+            return []
         
+        # Return and clear the agent's message queue
         messages = self.message_queues[agent_id].copy()
         self.message_queues[agent_id].clear()
         return messages
     
-    def peek_messages(self, agent_id: str) -> List[Message]:
-        """Get messages for an agent without consuming them"""
-        if agent_id not in self.message_queues:
-            self.register_agent(agent_id)
+    def subscribe(self, agent_id: str, topic: str) -> bool:
+        """Subscribe agent to a topic"""
+        if agent_id not in self.agents:
+            return False
         
-        return self.message_queues[agent_id].copy()
-    
-    def subscribe(self, agent_id: str, topic: str):
-        """Subscribe an agent to a topic"""
-        # Ensure agent is registered
-        if agent_id not in self.registered_agents:
-            self.register_agent(agent_id)
-        
-        # Add topic if it doesn't exist
         if topic not in self.topics:
             self.topics[topic] = set()
         
-        # Subscribe agent to topic
         self.topics[topic].add(agent_id)
-        self.agent_subscriptions[agent_id].add(topic)
+        return True
     
-    def unsubscribe(self, agent_id: str, topic: str):
-        """Unsubscribe an agent from a topic"""
+    def unsubscribe(self, agent_id: str, topic: str) -> bool:
+        """Unsubscribe agent from a topic"""
         if topic in self.topics and agent_id in self.topics[topic]:
             self.topics[topic].remove(agent_id)
-            
-            # Remove topic if no subscribers left
-            if not self.topics[topic]:
+            if not self.topics[topic]:  # Remove empty topic
                 del self.topics[topic]
+            return True
+        return False
+    
+    def _get_topic_from_message(self, message: Message) -> str:
+        """
+        Extract topic from your Message structure
+        Your Message class stores topic in metadata
+        """
+        # First try to get topic from metadata
+        if hasattr(message, 'metadata') and message.metadata:
+            topic = message.metadata.get('topic')
+            if topic:
+                return topic
         
-        if agent_id in self.agent_subscriptions and topic in self.agent_subscriptions[agent_id]:
-            self.agent_subscriptions[agent_id].remove(topic)
+        # Fallback to message_type if no topic in metadata
+        if hasattr(message, 'message_type'):
+            return message.message_type
+        
+        # Default topic
+        return 'general'
     
-    def get_subscriptions(self, agent_id: str) -> Set[str]:
-        """Get all topics an agent is subscribed to"""
-        if agent_id not in self.agent_subscriptions:
-            return set()
-        return self.agent_subscriptions[agent_id].copy()
-    
-    def get_topic_subscribers(self, topic: str) -> Set[str]:
-        """Get all agents subscribed to a topic"""
-        if topic not in self.topics:
-            return set()
-        return self.topics[topic].copy()
-    
-    def get_all_topics(self) -> List[str]:
-        """Get list of all available topics"""
+    def get_active_topics(self) -> List[str]:
+        """Get list of all active topics with subscribers"""
         return list(self.topics.keys())
     
-    def get_messages_for_agent(self, agent_id: str) -> List[Message]:
-        """Get all messages in an agent's queue (without consuming)"""
-        return self.peek_messages(agent_id)
+    def get_subscribers(self, topic: str) -> Set[str]:
+        """Get all subscribers for a specific topic"""
+        return self.topics.get(topic, set()).copy()
     
-    def get_new_messages_for_agent(self, agent_id: str) -> List[Message]:
-        """Get and clear new messages for an agent (consume messages)"""
-        return self.receive(agent_id)
-    
-    def get_all_messages(self) -> List[Message]:
-        """Get all messages from the system - maintains blackboard interface"""
-        return self.all_messages.copy()
-    
-    def get_conversation_history(self) -> str:
-        """Get formatted conversation history for LLM prompts"""
-        if not self.all_messages:
-            return "No previous messages."
-        
-        history = "=== CONVERSATION HISTORY ===\n"
-        for msg in self.all_messages:
-            timestamp = msg.timestamp.strftime("%H:%M:%S")
-            topic = msg.metadata.get('topic', 'default')
-            
-            # Get subscribers for this topic at time of message
-            subscribers = self.get_topic_subscribers(topic)
-            subscribers_str = ', '.join(subscribers) if subscribers else 'none'
-            
-            history += f"[{timestamp}] {msg.agent_role} ({msg.agent_id}) -> TOPIC[{topic}] -> [{subscribers_str}]:\n{msg.content}\n\n"
-        
-        return history
-    
-    def post_message(self, agent_id: str, agent_role: str, content: str, 
-                    message_type: str = "response", metadata: Dict = None) -> str:
-        """Post a message (maintains blackboard interface) - publishes to 'default' topic"""
-        return self.publish_message(agent_id, agent_role, content, 'default', message_type, metadata)
-    
-    def clear(self):
-        """Clear all messages from the system"""
-        self.all_messages.clear()
-        self.message_counter = 0
-        for agent_id in self.message_queues:
-            self.message_queues[agent_id].clear()
-    
-    def get_registered_agents(self) -> List[str]:
-        """Get list of registered agents"""
-        return self.registered_agents.copy()
-    
-    def create_topic(self, topic: str):
-        """Create a new topic (topics are created automatically on first subscription)"""
-        if topic not in self.topics:
-            self.topics[topic] = set()
-    
-    def delete_topic(self, topic: str):
-        """Delete a topic and unsubscribe all agents"""
-        if topic in self.topics:
-            # Unsubscribe all agents from this topic
-            for agent_id in self.topics[topic].copy():
-                self.unsubscribe(agent_id, topic)
-            del self.topics[topic]
-    
-    def get_topic_message_count(self, topic: str) -> int:
-        """Get count of messages published to a specific topic"""
-        count = 0
-        for msg in self.all_messages:
-            if msg.metadata.get('topic') == topic:
-                count += 1
-        return count
-    
-    def get_messages_by_topic(self, topic: str) -> List[Message]:
-        """Get all messages published to a specific topic"""
-        return [msg for msg in self.all_messages if msg.metadata.get('topic') == topic]
-    
-    def _deliver_to_agent(self, agent_id: str, message: Message):
-        """Internal method to deliver message to specific agent"""
-        if agent_id not in self.message_queues:
-            self.register_agent(agent_id)
-        self.message_queues[agent_id].append(message)
+    def get_agent_subscriptions(self, agent_id: str) -> List[str]:
+        """Get all topics that an agent is subscribed to"""
+        subscribed_topics = []
+        for topic, subscribers in self.topics.items():
+            if agent_id in subscribers:
+                subscribed_topics.append(topic)
+        return subscribed_topics

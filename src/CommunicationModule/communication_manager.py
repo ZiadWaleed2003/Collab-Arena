@@ -3,7 +3,7 @@ from typing import List, Optional
 from .blackboard import Blackboard
 from src.message import Message
 from .direct_communication import DirectMessenger
-
+from .pubsub_communication import PubSubCommunicator
 class CommunicationMode(Enum):
     """Enumeration for different communication modes"""
     BLACKBOARD = "blackboard"
@@ -21,7 +21,7 @@ class CommunicationManager:
         # Create instances of all concrete communicators
         self.blackboard_impl = Blackboard()
         self.direct_impl = DirectMessenger()
-        # self.pubsub_impl = PubSubCommunicator()
+        self.pubsub_impl = PubSubCommunicator()
         
         # Set current communicator based on mode
         self.current_communicator = self.create_communicator(mode)
@@ -58,7 +58,7 @@ class CommunicationManager:
             self.communication_stats["messages_sent"] += 1
             self.communication_stats["total_message_length"] += len(message.content)
             self.communication_stats["unique_senders"].add(message.agent_id)
-            self.communication_stats["unique_topics"].add(message.metadata.get("topic", "general"))
+            self.communication_stats["unique_topics"].add(message.metadata.get("topic"))
             #self._log_message(message)
         return success
     
