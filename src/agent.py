@@ -366,16 +366,16 @@ class Agent:
                 return "analysis"
             
         elif "Team Coordinator" in self.role:
-            if any(word in content_lower for word in ["next steps", "action", "timeline"]):
-                return "coordination"
+            # if any(word in content_lower for word in ["next steps", "action", "timeline"]):
+            return "coordination"
                 
         elif "Domain Specialist" in self.role:
-            if any(word in content_lower for word in ["technical", "algorithm", "method"]):
-                return "technical"
+            # if any(word in content_lower for word in ["technical", "algorithm", "method"]):
+            return "technical_insights"
                 
         elif "Solution Implementer" in self.role:
-            if any(word in content_lower for word in ["implement", "code", "execute"]):
-                return "implementation"
+            # if any(word in content_lower for word in ["implement", "code", "execute"]):
+            return "implementation"
         
         # Default topic
         return "general"
