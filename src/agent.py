@@ -25,9 +25,13 @@ class Agent:
             "api_calls": 0
         }
         
-        # Memory integration
+        # Memory integration with RBAC support
         self.memory_manager = memory_manager or MemoryManager()
-        self.memory_manager.register_agent(self.agent_id)
+        # Register agent with role for RBAC memory systems
+        if self.memory_manager.is_rbac_enabled():
+            self.memory_manager.register_agent(self.agent_id, self.role)
+        else:
+            self.memory_manager.register_agent(self.agent_id)
         
         # Original conversation context - kept for backward compatibility
         self.conversation_context = []  # Keep local context for better LLM responses
@@ -345,6 +349,77 @@ class Agent:
     def get_short_term_memory_size(self) -> int:
         """Get current size of short-term memory"""
         return self.memory_manager.get_short_term_memory_size(self.agent_id)
+    
+    # RBAC-specific methods (only work when RBAC memory is enabled)
+    def change_agent_role(self, target_agent_id: str, new_role: str) -> bool:
+        """
+        Change another agent's role (requires admin privileges)
+        """
+        return self.memory_manager.set_agent_role(target_agent_id, new_role, self.agent_id)
+    
+    def add_permission_to_role(self, role: str, permission: str) -> bool:
+        """
+        Add permission to a role (requires admin privileges)
+        
+        Args:
+            role: Role name
+            permission: Permission name ("read", "write", "delete", "admin")
+        """
+        return self.memory_manager.add_role_permission(role, permission, self.agent_id)
+    
+    def remove_permission_from_role(self, role: str, permission: str) -> bool:
+        """
+        Remove permission from a role (requires admin privileges)
+        """
+        return self.memory_manager.remove_role_permission(role, permission, self.agent_id)
+    
+    def protect_memory_key(self, key: str) -> bool:
+        """
+        Mark a memory key as protected (requires admin privileges)
+        """
+        return self.memory_manager.protect_key(key, self.agent_id)
+    
+    def unprotect_memory_key(self, key: str) -> bool:
+        """
+        Remove protection from a memory key (requires admin privileges)
+        """
+        return self.memory_manager.unprotect_key(key, self.agent_id)
+    
+    def get_my_permissions(self) -> list:
+        """
+        Get current agent's permissions
+        """
+        return self.memory_manager.get_agent_permissions(self.agent_id)
+    
+    def get_role_information(self, role: str) -> dict:
+        """
+        Get information about a specific role
+        """
+        return self.memory_manager.get_role_info(role)
+    
+    def get_available_roles(self) -> list:
+        """
+        Get all available roles in the system
+        """
+        return self.memory_manager.get_all_roles()
+    
+    def get_protected_keys(self) -> list:
+        """
+        Get list of protected memory keys (requires admin access)
+        """
+        return self.memory_manager.get_protected_keys(self.agent_id)
+    
+    def get_rbac_statistics(self) -> dict:
+        """
+        Get RBAC system statistics (if RBAC is enabled)
+        """
+        return self.memory_manager.get_rbac_stats()
+    
+    def is_rbac_enabled(self) -> bool:
+        """
+        Check if RBAC memory system is enabled
+        """
+        return self.memory_manager.is_rbac_enabled()
 
     def _determine_topic(self, response_content: str) -> str:
         """
