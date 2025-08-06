@@ -68,7 +68,7 @@ class Agent:
                 model=self.model,
                 messages=[
                     {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": f"Problem: {problem}\n\n{full_context}\n\nProvide a concise response (max 500 words):"}
+                    {"role": "user", "content": f"Problem: {problem}\n\n{full_context}\n"}
                 ],
                 temperature=0,
             )
