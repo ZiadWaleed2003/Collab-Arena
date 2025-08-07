@@ -24,7 +24,7 @@ import os
 
 from src.agent import Agent
 from src.MemoryModule.memory_manager import MemoryManager
-from src.CommunicationModule.communication_manager import CommunicationManager
+from src.CommunicationModule.communication_manager import CommunicationManager , CommunicationMode
 from .data_models import OrchestratorResponse
 from pydantic import ValidationError
 
@@ -41,13 +41,13 @@ class OrchestrationState(TypedDict):
     
     # Agent planning & creation
     agent_plan: List[Dict[str, Any]]
-    created_agents: List[Any]  # Agent instances
+    agent_configs: List[Dict[str, Any]]  # Store serializable agent configurations only
     agent_creation_reasoning: List[str]  # Why each agent was created
     agent_modifications_history: List[Dict[str, Any]]  # Track all changes made
     
-    # Memory & Communication managers
-    memory_manager: Any
-    communication_manager: Any
+    # Memory & Communication manager configs (not instances for serialization)
+    memory_manager_config: Dict[str, Any]
+    communication_manager_config: Dict[str, Any]
     
     # Human interaction tracking
     human_feedback: Optional[str]
@@ -352,10 +352,10 @@ class LangGraphCoordinationEngine:
     
     def _creating_agents_node(self, state: OrchestrationState) -> OrchestrationState:
         """
-        Creating Agents Node: Instantiate and configure agents
-        TRACKS: agent creation process, configuration decisions, setup issues
+        Creating Agents Node: Create agent configurations for later instantiation
+        TRACKS: agent configuration process, setup decisions
         """
-        logger.info("🤖 Creating Agents Node: Instantiating configured agents")
+        logger.info("🤖 Creating Agents Node: Preparing agent configurations")
         
         current_time = datetime.now().isoformat()
         state["current_step"] = "creating_agents"
@@ -363,7 +363,7 @@ class LangGraphCoordinationEngine:
         state["step_timestamps"]["creating_agents"] = current_time
         
         try:
-            # Initialize managers with memory tracking (use LLM recommendations if available)
+            # Store manager configurations (not instances for serialization)
             memory_config = state["user_preferences"].get("memory_mode")
             comm_config = state["user_preferences"].get("communication_mode")
             
@@ -384,15 +384,12 @@ class LangGraphCoordinationEngine:
             memory_config = memory_config or "shared"
             comm_config = comm_config or "blackboard"
             
-            # Create memory manager with reasoning
-            memory_manager = self._create_memory_manager_with_reasoning(memory_config)
-            comm_manager = self._create_communication_manager_with_reasoning(comm_config)
+            # Store manager configurations (not instances)
+            state["memory_manager_config"] = {"mode": memory_config}
+            state["communication_manager_config"] = {"mode": comm_config}
             
-            state["memory_manager"] = memory_manager
-            state["communication_manager"] = comm_manager
-            
-            # Create agents with detailed tracking
-            created_agents = []
+            # Create agent configurations (not instances yet)
+            agent_configs = []
             agent_creation_reasoning = []
             
             for i, agent_config in enumerate(state["agent_plan"]):
@@ -404,15 +401,17 @@ class LangGraphCoordinationEngine:
                         agent_config
                     )
                     
-                    # Create agent instance
-                    agent = Agent(
-                        agent_id=agent_config["agent_id"],
-                        role=agent_config["role"],
-                        system_prompt=system_prompt,
-                        memory_manager=memory_manager
-                    )
+                    # Store serializable agent configuration
+                    config = {
+                        "agent_id": agent_config["agent_id"],
+                        "role": agent_config["role"],
+                        "system_prompt": system_prompt,
+                        "capabilities": agent_config.get("capabilities", []),
+                        "memory_access": agent_config.get("memory_access", "standard"),
+                        "creation_timestamp": current_time
+                    }
                     
-                    created_agents.append(agent)
+                    agent_configs.append(config)
                     
                     # Track reasoning for this agent creation
                     creation_reasoning = {
@@ -425,7 +424,7 @@ class LangGraphCoordinationEngine:
                     }
                     agent_creation_reasoning.append(str(creation_reasoning))
                     
-                    logger.info(f"✅ Created agent: {agent_config['agent_id']} ({agent_config['role']})")
+                    logger.info(f"✅ Configured agent: {agent_config['agent_id']} ({agent_config['role']})")
                     
                 except Exception as agent_error:
                     error_info = {
@@ -435,24 +434,25 @@ class LangGraphCoordinationEngine:
                         "error": str(agent_error)
                     }
                     state["error_history"].append(error_info)
-                    logger.error(f"❌ Failed to create agent {agent_config.get('agent_id', i)}: {agent_error}")
+                    logger.error(f"❌ Failed to configure agent {agent_config.get('agent_id', i)}: {agent_error}")
             
-            state["created_agents"] = created_agents
+            # Store only serializable configurations
+            state["agent_configs"] = agent_configs
             state["agent_creation_reasoning"] = agent_creation_reasoning
             
             # Record orchestration decision
             orchestration_decision = {
                 "timestamp": current_time,
                 "node": "creating_agents",
-                "decision_type": "agent_instantiation",
-                "agents_created": len(created_agents),
+                "decision_type": "agent_configuration",
+                "agents_configured": len(agent_configs),
                 "memory_mode": memory_config,
                 "communication_mode": comm_config,
-                "creation_success_rate": len(created_agents) / len(state["agent_plan"]) if state["agent_plan"] else 0
+                "configuration_success_rate": len(agent_configs) / len(state["agent_plan"]) if state["agent_plan"] else 0
             }
             state["orchestration_decisions"].append(orchestration_decision)
             
-            logger.info(f"✅ Successfully created {len(created_agents)}/{len(state['agent_plan'])} agents")
+            logger.info(f"✅ Successfully configured {len(agent_configs)}/{len(state['agent_plan'])} agents")
             
         except Exception as e:
             error_info = {
@@ -652,17 +652,45 @@ class LangGraphCoordinationEngine:
     
     def _start_working_node(self, state: OrchestrationState) -> OrchestrationState:
         """
-        Start Working Node: Finalize configuration and begin execution
+        Start Working Node: Create actual agent instances and return them
         TRACKS: final configuration, transition to execution, baseline metrics
+        RETURNS: List of actual Agent instances for action executor
         """
-        logger.info("🚀 Start Working Node: Finalizing configuration and starting execution")
+        logger.info("🚀 Start Working Node: Creating actual agent instances for action executor")
         
         current_time = datetime.now().isoformat()
         state["current_step"] = "start_working"
         state["execution_phase"] = "execution"
         state["step_timestamps"]["start_working"] = current_time
         
+        # This will hold the actual agent instances (not stored in state for serialization)
+        actual_agents = []
+        
         try:
+            # Create actual memory and communication managers
+            memory_config = state.get("memory_manager_config", {}).get("mode", "shared")
+            comm_config = state.get("communication_manager_config", {}).get("mode", "blackboard")
+            
+            memory_manager = self._create_memory_manager_with_reasoning(memory_config)
+            comm_manager = self._create_communication_manager_with_reasoning(comm_config)
+            
+            # Create actual agent instances from configurations
+            agent_configs = state.get("agent_configs", [])
+            
+            for config in agent_configs:
+                try:
+                    agent = Agent(
+                        agent_id=config["agent_id"],
+                        role=config["role"],
+                        system_prompt=config["system_prompt"],
+                        memory_manager=memory_manager
+                    )
+                    actual_agents.append(agent)
+                    logger.info(f"✅ Created actual agent instance: {config['agent_id']} ({config['role']})")
+                    
+                except Exception as agent_error:
+                    logger.error(f"❌ Failed to create agent instance {config.get('agent_id', 'unknown')}: {agent_error}")
+            
             # Finalize configuration with tracking
             final_config = self._finalize_configuration_with_tracking(state)
             
@@ -675,7 +703,7 @@ class LangGraphCoordinationEngine:
                 "timestamp": current_time,
                 "node": "start_working",
                 "decision_type": "execution_initiation",
-                "final_agent_count": len(state.get("created_agents", [])),
+                "final_agent_count": len(actual_agents),
                 "total_approval_iterations": state.get("approval_iterations", 0),
                 "configuration_hash": hash(str(final_config)),
                 "orchestration_effectiveness": self._calculate_orchestration_effectiveness(state)
@@ -690,7 +718,11 @@ class LangGraphCoordinationEngine:
             }
             state["task_progress_milestones"].append(milestone)
             
-            logger.info(f"✅ Orchestration completed successfully. {len(state.get('created_agents', []))} agents ready for execution.")
+            # Store the actual agents in a special field that won't be serialized by LangGraph
+            # but can be accessed by the action executor
+            state["_actual_agents"] = actual_agents
+            
+            logger.info(f"✅ Orchestration completed successfully. {len(actual_agents)} agents ready for execution.")
             
         except Exception as e:
             error_info = {
@@ -751,10 +783,16 @@ class LangGraphCoordinationEngine:
     def _create_communication_manager_with_reasoning(self, comm_config: str) -> CommunicationManager:
         """Create communication manager with configuration reasoning"""
         try:
-            return CommunicationManager(protocol=comm_config)
+            if comm_config == 'blackboard':
+                return CommunicationManager(mode = CommunicationMode.BLACKBOARD)
+            elif comm_config == 'direct messaging':
+                return CommunicationManager(mode = CommunicationMode.DIRECT)
+            
+            else:
+                return CommunicationManager(mode=CommunicationMode.PUBSUB)
         except Exception:
             # Fallback to blackboard
-            return CommunicationManager(protocol="blackboard")
+            return CommunicationManager(mode=CommunicationMode.BLACKBOARD)
     
     def _generate_system_prompt_with_context(self, role: str, task_description: str, agent_config: Dict[str, Any]) -> str:
         """Generate contextual system prompt for agent"""
@@ -877,9 +915,9 @@ Remember: You are part of a multi-agent system working towards a common goal. Yo
     def _finalize_configuration_with_tracking(self, state: OrchestrationState) -> Dict[str, Any]:
         """Finalize configuration with comprehensive tracking"""
         return {
-            "final_agent_count": len(state.get("created_agents", [])),
-            "memory_mode": state["user_preferences"].get("memory_mode", "shared"),
-            "communication_mode": state["user_preferences"].get("communication_mode", "blackboard"),
+            "final_agent_count": len(state.get("agent_configs", [])),
+            "memory_mode": state.get("memory_manager_config", {}).get("mode", "shared"),
+            "communication_mode": state.get("communication_manager_config", {}).get("mode", "blackboard"),
             "approval_iterations": state.get("approval_iterations", 0),
             "configuration_timestamp": datetime.now().isoformat()
         }
@@ -888,7 +926,7 @@ Remember: You are part of a multi-agent system working towards a common goal. Yo
         """Establish baseline performance metrics"""
         return {
             "orchestration_start_time": datetime.now().isoformat(),
-            "agent_count": len(state.get("created_agents", [])),
+            "agent_count": len(state.get("agent_configs", [])),
             "complexity_estimate": "medium",  # Would be calculated
             "expected_performance_indicators": ["task_completion_rate", "collaboration_efficiency", "output_quality"]
         }
@@ -987,11 +1025,11 @@ Remember: You are part of a multi-agent system working towards a common goal. Yo
             task_config=task_config,
             user_preferences=user_preferences,
             agent_plan=[],
-            created_agents=[],
+            agent_configs=[],
             agent_creation_reasoning=[],
             agent_modifications_history=[],
-            memory_manager=None,
-            communication_manager=None,
+            memory_manager_config={},
+            communication_manager_config={},
             human_feedback=None,
             human_feedback_history=[],
             needs_modifications=False,
@@ -1034,6 +1072,51 @@ Remember: You are part of a multi-agent system working towards a common goal. Yo
                 "context": "orchestration_execution"
             })
             return initial_state
+    
+    def get_agents(self, final_state: OrchestrationState) -> List[Agent]:
+        """
+        Get actual Agent instances from the final orchestration state.
+        This is the main method the action executor should use.
+        """
+        try:
+            # Check if we have actual agents stored (from start_working_node)
+            if "_actual_agents" in final_state:
+                agents = final_state["_actual_agents"]
+                logger.info(f"✅ Retrieved {len(agents)} actual agent instances")
+                return agents
+            
+            # Fallback: create agents from configurations
+            agent_configs = final_state.get("agent_configs", [])
+            if not agent_configs:
+                logger.warning("⚠️ No agent configurations found in final state")
+                return []
+            
+            # Create memory and communication managers
+            memory_config = final_state.get("memory_manager_config", {}).get("mode", "shared")
+            memory_manager = self._create_memory_manager_with_reasoning(memory_config)
+            
+            # Create agent instances from configurations
+            agents = []
+            for config in agent_configs:
+                try:
+                    agent = Agent(
+                        agent_id=config["agent_id"],
+                        role=config["role"],
+                        system_prompt=config["system_prompt"],
+                        memory_manager=memory_manager
+                    )
+                    agents.append(agent)
+                    logger.info(f"✅ Created agent instance: {config['agent_id']} ({config['role']})")
+                    
+                except Exception as agent_error:
+                    logger.error(f"❌ Failed to create agent instance {config.get('agent_id', 'unknown')}: {agent_error}")
+            
+            logger.info(f"✅ Created {len(agents)} agent instances from configurations")
+            return agents
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to get agents from final state: {e}")
+            return []
     
     def get_orchestration_history(self, thread_id: str) -> List[Dict[str, Any]]:
         """Get orchestration history for a specific thread"""
@@ -1107,7 +1190,7 @@ if __name__ == "__main__":
     print("\n🎯 Orchestration Results:")
     print(f"Final step: {result.get('current_step', 'unknown')}")
     print(f"Execution phase: {result.get('execution_phase', 'unknown')}")
-    print(f"Agents created: {len(result.get('created_agents', []))}")
+    print(f"Agents configured: {len(result.get('agent_configs', []))}")
     print(f"Approval iterations: {result.get('approval_iterations', 0)}")
     print(f"Orchestration decisions: {len(result.get('orchestration_decisions', []))}")
     
@@ -1115,6 +1198,17 @@ if __name__ == "__main__":
         print(f"❌ Error: {result['error_message']}")
     else:
         print("✅ Orchestration completed successfully!")
+        
+        # Get actual agent instances for action executor
+        agents = engine.get_agents(result)
+        print(f"\n🤖 Agent Instances for Action Executor:")
+        print(f"Total agents: {len(agents)}")
+        for agent in agents:
+            print(f"  - {agent.agent_id}: {agent.role}")
+        
+        # This is what the action executor will use:
+        # action_executor = ActionExecutor()
+        # action_executor.execute_with_agents(agents, task_config)
     
     # Get learning insights
     insights = engine.get_learning_insights()
