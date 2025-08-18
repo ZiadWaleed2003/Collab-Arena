@@ -1,19 +1,21 @@
 from typing import Any, Dict
 from langchain_core.tools import tool
-
-from src.EnviromentModule.workspace_manager import WorkspaceManager
+# from src.EnviromentModule.workspace_manager import WorkspaceManager
 from .base_tool import BaseTool
+from src.clients import get_search_client
 
 class SearchingTool(BaseTool):
 
 
     def __init__(self):
-        super().__init__()
+        super().__init__(name="search_tavily", description="Searches the web for information.")
+        self.searching_tool = get_search_client()
+
 
     
 
-    @tool
-    def execute(self,query: str, max_results: int = 5) -> Dict[str, Any]:
+    # @tool
+    def execute(self,query: str) -> Dict[str, Any]:
         """Search for information using the provided query.
         
         This tool performs web search or knowledge base search to find relevant
@@ -42,26 +44,29 @@ class SearchingTool(BaseTool):
                     "success": False,
                     "message": "Invalid query: must be a non-empty string"
                 }
-            
-            if not isinstance(max_results, int) or max_results < 1:
-                max_results = 5
-            
+                   
             # Clean and prepare query
             cleaned_query = query.strip()[:500]  # Limit query length
             
+
+
+            results = self.searching_tool.invoke(cleaned_query , max)
+
+            content = results['results']['content']
+
 
             """
                 actual implementation still in progress here for this tool
                 maybe I'll use tavily and firecrawl or scrapegraph still didn't decided yet
             """
             
-            # return {
-            #     "results": mock_results,
-            #     "total_found": len(mock_results),
-            #     "query_used": cleaned_query,
-            #     "success": True,
-            #     "message": f"Found {len(mock_results)} results for query: {cleaned_query}"
-            # }
+            return {
+                "results": content,
+                "total_found": len(content),
+                "query_used": cleaned_query,
+                "success": True,
+                "message": f"Found {len(results['results'])} results for query: {cleaned_query}"
+            }
             
         except Exception as e:
             return {
@@ -72,3 +77,14 @@ class SearchingTool(BaseTool):
                 "message": f"Search error: {str(e)}"
             }
     
+
+if __name__ == "__main__":
+
+    search_tool = SearchingTool()
+
+    results = search_tool.execute(query="Who's messi ? ")
+
+    print(f"{results['results']}")
+
+
+
