@@ -1,6 +1,7 @@
 from typing import Any, Dict
 from langchain_core.tools import tool
 
+from src.EnviromentModule.workspace_manager import WorkspaceManager
 from .base_tool import BaseTool
 
 class SearchingTool(BaseTool):
@@ -12,7 +13,7 @@ class SearchingTool(BaseTool):
     
 
     @tool
-    def search_tool(query: str, max_results: int = 5) -> Dict[str, Any]:
+    def execute(query: str, max_results: int = 5) -> Dict[str, Any]:
         """Search for information using the provided query.
         
         This tool performs web search or knowledge base search to find relevant
