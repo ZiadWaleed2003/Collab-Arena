@@ -13,7 +13,7 @@ class CodeWriterTool(BaseTool):
 
 
     @tool
-    def execute(file_path: str, content: str, mode: str = "w") -> Dict[str, Any]:
+    def execute(self,file_path: str, content: str, mode: str = "w") -> Dict[str, Any]:
         """Write code or text content to a file in the workspace.
         
         This tool creates or modifies files in the workspace with proper error

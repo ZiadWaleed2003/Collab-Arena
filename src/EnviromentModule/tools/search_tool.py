@@ -13,7 +13,7 @@ class SearchingTool(BaseTool):
     
 
     @tool
-    def execute(query: str, max_results: int = 5) -> Dict[str, Any]:
+    def execute(self,query: str, max_results: int = 5) -> Dict[str, Any]:
         """Search for information using the provided query.
         
         This tool performs web search or knowledge base search to find relevant
