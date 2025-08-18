@@ -8,10 +8,7 @@ class BaseTool(ABC):
     def __init__(self):
         
         self.name : str
-
         self.description : str
-
-
 
     @abstractmethod
     def execute(state : dict , params : dict):
