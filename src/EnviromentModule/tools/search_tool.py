@@ -8,14 +8,14 @@ class SearchingTool(BaseTool):
 
 
     def __init__(self):
-        super().__init__(name="search_tavily", description="Searches the web for information.")
+        super().__init__(name="search_tavily",description="Searches the web for information.")
         self.searching_tool = get_search_client()
 
 
     
 
-    # @tool
-    def execute(self,query: str) -> Dict[str, Any]:
+    @tool
+    def execute(self, state: dict, params: dict) -> Dict[str, Any]:
         """Search for information using the provided query.
         
         This tool performs web search or knowledge base search to find relevant
@@ -23,8 +23,8 @@ class SearchingTool(BaseTool):
         structured results.
         
         Args:
-            query: The search query string
-            max_results: Maximum number of results to return (default: 5)
+            state: The current state dictionary
+            params: Dictionary containing search parameters including 'query'
             
         Returns:
             Dictionary containing:
@@ -35,6 +35,9 @@ class SearchingTool(BaseTool):
             - message: Status message or error description
         """
         try:
+            # Extract query from params
+            query = params.get('query', '')
+            
             # Validate inputs
             if not query or not isinstance(query, str):
                 return {
@@ -50,41 +53,29 @@ class SearchingTool(BaseTool):
             
 
 
-            results = self.searching_tool.invoke(cleaned_query , max)
+            response = self.searching_tool.search(cleaned_query)
 
-            content = results['results']['content']
+            results = response['results']
 
+            content = results[0]['content']
 
-            """
-                actual implementation still in progress here for this tool
-                maybe I'll use tavily and firecrawl or scrapegraph still didn't decided yet
-            """
             
             return {
                 "results": content,
                 "total_found": len(content),
                 "query_used": cleaned_query,
                 "success": True,
-                "message": f"Found {len(results['results'])} results for query: {cleaned_query}"
+                "message": f"Found {len(results)} results for query: {cleaned_query}"
             }
             
         except Exception as e:
             return {
                 "results": [],
                 "total_found": 0,
-                "query_used": query if isinstance(query, str) else "",
+                "query_used": params.get('query', '') if isinstance(params.get('query'), str) else "",
                 "success": False,
                 "message": f"Search error: {str(e)}"
             }
-    
-
-if __name__ == "__main__":
-
-    search_tool = SearchingTool()
-
-    results = search_tool.execute(query="Who's messi ? ")
-
-    print(f"{results['results']}")
 
 
 

@@ -1,7 +1,7 @@
 import openai
 import os
 from dotenv import load_dotenv
-from langchain_tavily import TavilySearch
+from tavily import TavilyClient
 
 def get_llm_client():
     
@@ -13,8 +13,6 @@ def get_llm_client():
         base_url="https://integrate.api.nvidia.com/v1", 
         api_key=os.getenv("NVIDIA_API_KEY") 
     )
-
-
     return client
 
 
@@ -26,7 +24,9 @@ def get_llm():
 
     return model
 
-def get_search_client() -> TavilySearch:
+def get_search_client() -> TavilyClient:
     """Initializes and returns a shared TavilyClient instance."""
-    print("--- Initializing Tavily Client (This will run only once) ---")
-    return TavilySearch(api_key=os.getenv['TAVILY_API_KEY'])
+    load_dotenv()
+    print("--- Initializing Tavily Client ---")
+    api_key = os.getenv('TAVILY_API_KEY')
+    return TavilyClient(api_key=api_key)

@@ -5,10 +5,10 @@ class BaseTool(ABC):
 
     "Abstract class for all the tools"
 
-    def __init__(self):
+    def __init__(self , name , description):
         
-        self.name : str
-        self.description : str
+        self.name = name
+        self.description = description
 
     @abstractmethod
     def execute(state : dict , params : dict):
