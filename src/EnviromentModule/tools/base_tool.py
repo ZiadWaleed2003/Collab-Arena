@@ -11,6 +11,6 @@ class BaseTool(ABC):
         self.description = description
 
     @abstractmethod
-    def execute(state : dict , params : dict):
+    def execute(tool_input: dict):
         "a langraph tool to execute action on the enviroment"
         pass
