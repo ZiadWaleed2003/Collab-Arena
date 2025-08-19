@@ -1,0 +1,40 @@
+{
+    "app_name": "Collab-Arena Test Application",
+    "version": "1.0.0",
+    "environment": "development",
+    "database": {
+        "host": "localhost",
+        "port": 5432,
+        "name": "collab_arena_test",
+        "ssl": false
+    },
+    "api": {
+        "base_url": "http://localhost:8000",
+        "timeout": 30000,
+        "rate_limit": {
+            "requests_per_minute": 100,
+            "burst_size": 10
+        }
+    },
+    "features": {
+        "enable_logging": true,
+        "debug_mode": true,
+        "cache_enabled": false,
+        "experimental_features": [
+            "new_ui",
+            "advanced_search",
+            "real_time_collaboration"
+        ]
+    },
+    "security": {
+        "jwt_secret": "your-secret-key-here",
+        "session_timeout": 3600,
+        "password_requirements": {
+            "min_length": 8,
+            "require_special_chars": true,
+            "require_numbers": true
+        }
+    },
+    "generated_at": "2025-08-19T10:30:00Z",
+    "test_data": true
+}
