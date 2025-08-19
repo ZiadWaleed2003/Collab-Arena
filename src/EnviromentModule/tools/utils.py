@@ -1,53 +1,47 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Callable
 
-from .search_tool import SearchingTool
-from .code_writer_tool import CodeWriterTool
-from .code_runner_tool import CodeRunnerTool
-from .file_manager_tool import FileManagerTool
+from .search_tool import search_tool
+from .code_writer_tool import code_writer_tool
+from .code_runner_tool import code_runner_tool
+from .file_manager_tool import file_manager_tool
 
-# Create instances of the tool classes
-search_tool_instance = SearchingTool()
-code_writer_tool_instance = CodeWriterTool()
-code_runner_tool_instance = CodeRunnerTool()
-file_manager_tool_instance = FileManagerTool()
-
-# Tool registry for easy access - using the execute methods
+# Tool registry for easy access - using the langraph decorated functions
 AGENT_TOOLS = [
-    search_tool_instance.execute,
-    code_writer_tool_instance.execute,
-    code_runner_tool_instance.execute,
-    file_manager_tool_instance.execute
+    search_tool,
+    code_writer_tool,
+    code_runner_tool,
+    file_manager_tool
 ]
 
 # Tool metadata for introspection
 TOOL_METADATA = {
     "search_tool": {
-        "name": "execute",  
+        "name": "search_tool",  
         "description": "Search for information using queries",
-        "parameters": ["query", "max_results"],
+        "parameters": ["query"],
         "category": "information",
-        "class": "SearchingTool"
+        "function": search_tool
     },
     "code_writer_tool": {
-        "name": "execute", 
+        "name": "code_writer_tool", 
         "description": "Write code or text to files",
         "parameters": ["file_path", "content", "mode"],
         "category": "file_operations",
-        "class": "CodeWriterTool"
+        "function": code_writer_tool
     },
     "code_runner_tool": {
-        "name": "execute",  
+        "name": "code_runner_tool",  
         "description": "Execute code files in various languages",
         "parameters": ["file_path", "language", "timeout"],
         "category": "execution",
-        "class": "CodeRunnerTool"
+        "function": code_runner_tool
     },
     "file_manager_tool": {
-        "name": "execute",  
+        "name": "file_manager_tool",  
         "description": "Perform file system operations",
         "parameters": ["operation", "path"],
         "category": "file_operations",
-        "class": "FileManagerTool"
+        "function": file_manager_tool
     }
 }
 
@@ -62,21 +56,17 @@ def get_tool_info(tool_name: str) -> Optional[Dict[str, Any]]:
     return TOOL_METADATA.get(tool_name)
 
 
-def get_tool_instances() -> Dict[str, Any]:
-    """Get dictionary of tool instances for direct access."""
+def get_tool_functions() -> Dict[str, Callable]:
+    """Get dictionary of tool functions for direct access."""
     return {
-        "search_tool": search_tool_instance,
-        "code_writer_tool": code_writer_tool_instance,
-        "code_runner_tool": code_runner_tool_instance,
-        "file_manager_tool": file_manager_tool_instance
+        "search_tool": search_tool,
+        "code_writer_tool": code_writer_tool,
+        "code_runner_tool": code_runner_tool,
+        "file_manager_tool": file_manager_tool
     }
 
 
-def get_tool_classes() -> Dict[str, Any]:
-    """Get dictionary of tool classes for instantiation."""
-    return {
-        "SearchingTool": SearchingTool,
-        "CodeWriterTool": CodeWriterTool,
-        "CodeRunnerTool": CodeRunnerTool,
-        "FileManagerTool": FileManagerTool
-    }
+def get_tool_function(tool_name: str) -> Optional[Callable]:
+    """Get a specific tool function by name."""
+    tool_functions = get_tool_functions()
+    return tool_functions.get(tool_name)

@@ -2,19 +2,12 @@ import os
 from typing import Any, Dict
 from langchain_core.tools import tool
 
-from .base_tool import BaseTool
 from src.EnviromentModule.workspace_manager import WorkspaceManager
 
 
-class FileManagerTool(BaseTool):
 
-
-    def __init__(self):
-        super().__init__()
-
-
-    @tool  
-    def execute(self,operation: str, path: str, **kwargs) -> Dict[str, Any]:
+@tool  
+def file_manager_tool(tool_input:dict) -> Dict[str, Any]:
         """Perform file management operations in the workspace.
         
         This tool provides file system operations like listing directories,
@@ -29,6 +22,10 @@ class FileManagerTool(BaseTool):
             Dictionary with operation results and metadata
         """
         try:
+            path = tool_input.get('path','')
+            operation = tool_input.get('operation','')
+    
+
             if not operation or not isinstance(operation, str):
                 return {
                     "success": False,

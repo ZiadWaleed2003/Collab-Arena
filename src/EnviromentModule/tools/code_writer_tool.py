@@ -3,17 +3,11 @@ from typing import Any, Dict
 from langchain_core.tools import tool
 
 from src.EnviromentModule.workspace_manager import WorkspaceManager
-# from .base_tool import BaseTool
 
-
-# class CodeWriterTool(BaseTool):
-
-#     def __init__(self):
-#         super().__init__(name="Code Writer",description="Writes Code or text to files")
 
 
 @tool
-def execute(tool_input: dict) -> Dict[str, Any]:
+def code_writer_tool(tool_input: dict) -> Dict[str, Any]:
     """Write code or text content to a file in the workspace.
     
     This tool creates or modifies files in the workspace with proper error
