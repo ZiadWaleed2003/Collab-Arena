@@ -30,12 +30,52 @@ class EnviromentAgent:
         logger.info("Initializing Environment Agent...")
         self.tools = tool_utils.AGENT_TOOLS
         self.llm   = get_nvidia_llm()
-        self.model = self.llm.bind_tools(self.tools)
+
+        self.system_prompt = self._create_system_prompt()
+
+        # Bind tools with system message
+        self.model = self.llm.bind_tools(self.tools).with_config({
+                "system": self.system_prompt})
+        
         # The compiled graph is stored as an instance variable
         self.graph = self._build_graph()
         
         logger.info(f"Environment Agent initialized with {len(self.tools)} tools: {[tool.name for tool in self.tools if hasattr(tool, 'name')]}")
         print(f"Environment Agent initialized with {len(self.tools)} tools: {[tool.name for tool in self.tools if hasattr(tool, 'name')]}")
+
+    def _create_system_prompt(self) -> str:
+        """Create system prompt with tool context"""
+        tools_info = "\n".join([
+            f"- {tool_info['name']}: {tool_info['description']}\n"
+            f"  Parameters: {tool_info['parameters']}\n"
+            f"  Use for: {tool_info['category']} tasks"
+            for tool_info in tool_utils.TOOL_METADATA.values()
+        ])
+        
+        return "".join([
+            "You are an Environment Agent responsible for executing tools and managing environment operations.\n\n",
+            "Your responsibilities:\n",
+            "1. Execute tool operations as requested by the Action Executor\n",
+            "2. Provide accurate and detailed results\n",
+            "3. Handle errors gracefully and provide helpful feedback\n",
+            "4. Ensure safe execution of all operations\n\n",
+            
+            "AVAILABLE TOOLS:\n",
+            f"{tools_info}\n\n",
+            
+            "Guidelines:\n",
+            "- Always validate parameters before tool execution\n",
+            "- Provide clear status messages and results\n",
+            "- If a tool fails, explain why and suggest alternatives\n",
+            "- Use appropriate tools for each task type\n",
+            "- Maintain security and safety in all operations\n\n",
+            
+            "When you receive a request:\n",
+            "1. Understand what needs to be done\n",
+            "2. Select the appropriate tool(s)\n",
+            "3. Execute with proper parameters\n",
+            "4. Return clear results and status\n"
+        ])
 
     def _build_graph(self):
         """
@@ -45,7 +85,7 @@ class EnviromentAgent:
         workflow = StateGraph(AgentState)
 
         # Define the graph nodes 
-        workflow.add_node("agent", self._should_continue)
+        workflow.add_node("agent", self._call_model)
         workflow.add_node("action", ToolNode(self.tools))
 
         # Define the edges
@@ -61,7 +101,7 @@ class EnviromentAgent:
         logger.debug("LangGraph workflow compiled successfully")
         return compiled_graph
 
-    def _should_continue(self, state: AgentState) -> dict:
+    def _call_model(self, state: AgentState) -> dict:
         """
         The 'agent' node. Invokes the model with the current state.
         """
@@ -86,47 +126,28 @@ class EnviromentAgent:
             print("Decision: End.")
             return END
 
-    def run(self, user_input: str):
+    def run(self, user_input: str) -> str:
         """
         The public method to run a query through the agent.
-        Returns the final result for the action executor.
+        Returns the final result from the LLM.
         """
         logger.info(f"Starting Environment Agent execution for input: '{user_input}'")
         inputs = {"messages": [HumanMessage(content=user_input)]}
         print(f"\n--- Running Agent for: '{user_input}' ---\n")
         
         try:
-            # Stream the execution to show the steps
-            for event in self.graph.stream(inputs, stream_mode="values"):
-                logger.debug("Processing graph event...")
-                event["messages"][-1].pretty_print()
-                print("\n---\n")
+            # invoke() gets the final state directly
+            final_state = self.graph.invoke(inputs)
+            
+            # The final answer is the last message in the state
+            final_answer = final_state["messages"][-1]
             
             logger.info("Environment Agent execution completed successfully")
+            print("\n--- FINAL ANSWER ---")
+            final_answer.pretty_print()
+            
+            return final_answer.content
+
         except Exception as e:
             logger.error(f"Error during Environment Agent execution: {str(e)}")
             raise
-
-
-if __name__ == "__main__":
-    # Simple test without tool binding to see the agent work
-    import logging
-    logging.basicConfig(level=logging.INFO)
-    
-    try:
-        agent = EnviromentAgent()
-        
-        # Test with a simple question that doesn't require tools
-        agent.run("What's the weather now in egypt u can use the tool called searching_tool defined for you")
-        
-    except Exception as e:
-        print(f"Test failed: {e}")
-        
-        # Fallback test - create agent without tools
-        print("\n--- Testing without tool binding ---")
-        from src.clients import get_nvidia_llm
-        
-        llm = get_nvidia_llm()
-        response = llm.invoke("Hello, can you introduce yourself?")
-        print("Direct LLM response:")
-        print(response.content)
