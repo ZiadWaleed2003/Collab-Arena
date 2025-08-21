@@ -13,7 +13,7 @@ def get_llm_client():
 
     client = openai.OpenAI(
         base_url="https://integrate.api.nvidia.com/v1", 
-        api_key=os.getenv("NVIDIA_API_KEY") 
+        api_key=os.getenv("NVIDIA_API_KEY")
     )
     return client
 
@@ -38,7 +38,10 @@ def get_nvidia_llm():
 
     load_dotenv()
 
-    model_name = "meta/llama3-70b-instruct"
-    llm = ChatNVIDIA(model=model_name , nvidia_api_key = os.getenv("NVIDIA_API_KEY"))
+    model_name = "qwen/qwen3-235b-a22b"
+    llm = ChatNVIDIA(model=model_name , 
+                     nvidia_api_key = os.getenv("NVIDIA_API_KEY"),
+                     temperature = 0,
+                     base_url="https://integrate.api.nvidia.com/v1")
 
     return llm
