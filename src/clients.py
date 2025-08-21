@@ -2,6 +2,8 @@ import openai
 import os
 from dotenv import load_dotenv
 from tavily import TavilyClient
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
+
 
 def get_llm_client():
     
@@ -30,3 +32,13 @@ def get_search_client() -> TavilyClient:
     print("--- Initializing Tavily Client ---")
     api_key = os.getenv('TAVILY_API_KEY')
     return TavilyClient(api_key=api_key)
+
+def get_nvidia_llm():
+    """Initializes and return a Nvidia LLM client to be used by the Env-Agent"""
+
+    load_dotenv()
+
+    model_name = "meta/llama3-70b-instruct"
+    llm = ChatNVIDIA(model=model_name , nvidia_api_key = os.getenv("NVIDIA_API_KEY"))
+
+    return llm
