@@ -25,6 +25,7 @@ import os
 from src.agent import Agent
 from src.MemoryModule.memory_manager import MemoryManager
 from src.CommunicationModule.communication_manager import CommunicationManager , CommunicationMode
+from src.HumanInteractionModule.human_feedback import Humanfeedback
 from .data_models import OrchestratorResponse
 from pydantic import ValidationError
 
@@ -82,6 +83,7 @@ class LangGraphCoordinationEngine:
         self.memory = MemorySaver()  # In-memory storage for current session
         self.workflow = StateGraph(OrchestrationState)
         self.app = None
+        self.human_feedback = Humanfeedback()  # Initialize human feedback module
         self.learning_patterns = {
             "human_feedback_patterns": []
         }
@@ -837,15 +839,34 @@ Remember: You are part of a multi-agent system working towards a common goal. Yo
         }
     
     def _present_to_human_with_tracking(self, config_summary: Dict[str, Any], state: OrchestrationState) -> Dict[str, Any]:
-        """Present configuration to human with tracking"""
-        # In real implementation, this would be API/UI call
-        # For now, simulate human response
-        return {
-            "feedback": "Configuration looks good",
-            "approved": True,
-            "modifications": [],
-            "timestamp": datetime.now().isoformat()
-        }
+        """Present configuration to human with tracking using the Human Feedback Module"""
+        try:
+            # Use the human feedback module to get real user input
+            human_response = self.human_feedback.get_feedback(config_summary)
+            
+            # Track the interaction
+            interaction_record = {
+                "timestamp": human_response.get("timestamp"),
+                "config_summary": config_summary,
+                "response": human_response,
+                "iteration": state.get("approval_iterations", 0) + 1
+            }
+            
+            # Store pattern for learning
+            self._store_human_interaction_pattern(config_summary, human_response)
+            
+            return human_response
+            
+        except Exception as e:
+            logger.error(f"❌ Error in human interaction: {e}")
+            # Fallback to auto-approval in case of error
+            return {
+                "feedback": f"Error during human interaction: {str(e)}. Auto-approving.",
+                "approved": True,
+                "modifications": [],
+                "timestamp": datetime.now().isoformat(),
+                "error": True
+            }
     
     def _process_human_feedback(self, human_response: Dict[str, Any], state: OrchestrationState) -> Dict[str, Any]:
         """Process and interpret human feedback"""
