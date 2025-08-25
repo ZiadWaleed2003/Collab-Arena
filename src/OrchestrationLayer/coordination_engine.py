@@ -16,18 +16,18 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional, TypedDict
 from langgraph.graph import StateGraph, END, START
 from langgraph.checkpoint.memory import MemorySaver
+from pydantic import ValidationError
 
-# Import existing components
-import sys
-import os
-# sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from src.agent import Agent
 from src.MemoryModule.memory_manager import MemoryManager
 from src.CommunicationModule.communication_manager import CommunicationManager , CommunicationMode
 from src.HumanInteractionModule.human_feedback import Humanfeedback
 from .data_models import OrchestratorResponse
-from pydantic import ValidationError
+
+from src.SharedLog.shared_log import SharedLog
+from src.SharedLog.event_type import EventType
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -87,6 +87,8 @@ class LangGraphCoordinationEngine:
         self.learning_patterns = {
             "human_feedback_patterns": []
         }
+
+        self.shared_log = None
         self._setup_workflow()
     
     def _setup_workflow(self):
@@ -289,6 +291,19 @@ class LangGraphCoordinationEngine:
         """
         logger.info("🎯 Orchestrator Node: AI-powered task analysis starting")
         
+        # Log orchestration start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="orchestrator_node",
+                event_type=EventType.AGENT_THINK,
+                details={
+                    "action": "orchestration_analysis_start",
+                    "task_description": state["task_config"].get("task_description", ""),
+                    "user_preferences": state["user_preferences"],
+                    "iteration": state.get("approval_iterations", 0)
+                }
+            )
+        
         # Update state tracking
         current_time = datetime.now().isoformat()
         state["current_step"] = "orchestrator"
@@ -334,6 +349,22 @@ class LangGraphCoordinationEngine:
             
             logger.info(f"✅ LLM Analysis Complete: {task_analysis.get('task_type', 'Unknown')} task with {len(agent_plan)} agents planned")
             
+            # Log successful analysis completion
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="orchestrator_node",
+                    event_type=EventType.ACTION_PROPOSED,
+                    details={
+                        "action": "agent_plan_created",
+                        "agent_count": len(agent_plan),
+                        "task_type": task_analysis.get("task_type", "unknown"),
+                        "complexity_level": task_analysis.get("complexity_level", "medium"),
+                        "analysis_success": True,
+                        "llm_confidence": task_analysis.get("confidence_score", 0.8),
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -349,6 +380,20 @@ class LangGraphCoordinationEngine:
             logger.warning(f"⚠️ LLM analysis failed: {e}. Falling back to rule-based planning.")
             agent_plan = self._get_fallback_agent_plan(state["task_config"])
             state["agent_plan"] = agent_plan
+            
+            # Log fallback usage
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="orchestrator_node",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "orchestration_analysis_failed",
+                        "error": str(e),
+                        "fallback_used": True,
+                        "fallback_agent_count": len(agent_plan),
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -358,6 +403,18 @@ class LangGraphCoordinationEngine:
         TRACKS: agent configuration process, setup decisions
         """
         logger.info("🤖 Creating Agents Node: Preparing agent configurations")
+        
+        # Log agent creation start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="creating_agents_node",
+                event_type=EventType.ACTION_PROPOSED,
+                details={
+                    "action": "agent_configuration_start",
+                    "planned_agent_count": len(state.get("agent_plan", [])),
+                    "agent_roles": [agent.get("role", "unknown") for agent in state.get("agent_plan", [])]
+                }
+            )
         
         current_time = datetime.now().isoformat()
         state["current_step"] = "creating_agents"
@@ -456,6 +513,21 @@ class LangGraphCoordinationEngine:
             
             logger.info(f"✅ Successfully configured {len(agent_configs)}/{len(state['agent_plan'])} agents")
             
+            # Log successful agent configuration
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="creating_agents_node",
+                    event_type=EventType.ACTION_EXECUTED,
+                    details={
+                        "action": "agent_configuration_completed",
+                        "agents_configured": len(agent_configs),
+                        "memory_mode": memory_config,
+                        "communication_mode": comm_config,
+                        "success_rate": len(agent_configs) / len(state["agent_plan"]) if state["agent_plan"] else 0,
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -467,6 +539,19 @@ class LangGraphCoordinationEngine:
             state["error_message"] = str(e)
             state["recovery_attempts"] += 1
             logger.error(f"❌ Agent creation error: {e}")
+            
+            # Log agent configuration failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="creating_agents_node",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "agent_configuration_failed",
+                        "error": str(e),
+                        "partial_success": len(state.get("agent_configs", [])) > 0,
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -476,6 +561,19 @@ class LangGraphCoordinationEngine:
         TRACKS: interaction history, presentation content, response patterns
         """
         logger.info("👤 Human Interaction Node: Presenting configuration for approval")
+        
+        # Log human interaction start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="human_interaction_node",
+                event_type=EventType.HUMAN_FEEDBACK,
+                details={
+                    "action": "human_approval_request",
+                    "iteration": state.get("approval_iterations", 0) + 1,
+                    "agent_count": len(state.get("agent_configs", [])),
+                    "configuration_summary": self._generate_configuration_summary(state)
+                }
+            )
         
         current_time = datetime.now().isoformat()
         state["current_step"] = "human_interaction"
@@ -526,6 +624,21 @@ class LangGraphCoordinationEngine:
             
             logger.info(f"✅ Human interaction completed. Approved: {state['human_approved']}, Needs modifications: {state['needs_modifications']}")
             
+            # Log human feedback result
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="human_interaction_node",
+                    event_type=EventType.HUMAN_FEEDBACK,
+                    details={
+                        "action": "human_feedback_received",
+                        "approved": state["human_approved"],
+                        "needs_modifications": state["needs_modifications"],
+                        "feedback_type": feedback_processed.get("feedback_type", "unknown"),
+                        "iteration": state["approval_iterations"],
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -541,6 +654,19 @@ class LangGraphCoordinationEngine:
             state["human_approved"] = True
             state["needs_modifications"] = False
             logger.error(f"❌ Human interaction error: {e}. Assuming approval.")
+            
+            # Log human interaction failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="human_interaction_node",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "human_interaction_failed",
+                        "error": str(e),
+                        "fallback_action": "assume_approval",
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -550,6 +676,19 @@ class LangGraphCoordinationEngine:
         TRACKS: decision logic, routing decisions, condition evaluation
         """
         logger.info("🔀 Conditional Node: Evaluating modification requirements")
+        
+        # Log conditional evaluation start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="conditional_node",
+                event_type=EventType.AGENT_THINK,
+                details={
+                    "action": "routing_evaluation",
+                    "human_approved": state.get("human_approved", False),
+                    "needs_modifications": state.get("needs_modifications", False),
+                    "approval_iteration": state.get("approval_iterations", 0)
+                }
+            )
         
         current_time = datetime.now().isoformat()
         state["current_step"] = "conditional_check"
@@ -573,6 +712,20 @@ class LangGraphCoordinationEngine:
             
             logger.info(f"✅ Conditional evaluation: Route to {'modifications' if state.get('needs_modifications', False) else 'start working'}")
             
+            # Log routing decision
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="conditional_node",
+                    event_type=EventType.ACTION_PROPOSED,
+                    details={
+                        "action": "routing_decision",
+                        "next_route": "modify" if state.get("needs_modifications", False) else "approved",
+                        "reasoning": evaluation_result.get("reasoning", ""),
+                        "human_approved": state.get("human_approved", False),
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -587,6 +740,19 @@ class LangGraphCoordinationEngine:
             # Fallback: assume approved
             state["needs_modifications"] = False
             logger.error(f"❌ Conditional evaluation error: {e}. Defaulting to approved.")
+            
+            # Log conditional evaluation failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="conditional_node",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "routing_evaluation_failed",
+                        "error": str(e),
+                        "fallback_action": "default_to_approved",
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -596,6 +762,19 @@ class LangGraphCoordinationEngine:
         TRACKS: modification requests, implementation strategy, iteration patterns
         """
         logger.info("🔄 Send Back Modifications Node: Processing requested changes")
+        
+        # Log modification processing start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="send_back_modifications_node",
+                event_type=EventType.ACTION_PROPOSED,
+                details={
+                    "action": "modification_processing_start",
+                    "human_feedback": state.get("human_feedback", ""),
+                    "modification_iteration": len(state.get("agent_modifications_history", [])) + 1,
+                    "current_agent_count": len(state.get("agent_plan", []))
+                }
+            )
         
         current_time = datetime.now().isoformat()
         state["current_step"] = "send_back_modifications"
@@ -638,6 +817,21 @@ class LangGraphCoordinationEngine:
             
             logger.info(f"✅ Processed {len(modifications)} modifications for iteration {len(state['agent_modifications_history'])}")
             
+            # Log successful modification processing
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="send_back_modifications_node",
+                    event_type=EventType.ACTION_EXECUTED,
+                    details={
+                        "action": "modifications_applied",
+                        "modifications_count": len(modifications),
+                        "iteration_number": len(state["agent_modifications_history"]),
+                        "new_agent_count": len(modified_plan),
+                        "plan_changes": self._compare_plans(state["agent_plan"], modified_plan),
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -649,6 +843,19 @@ class LangGraphCoordinationEngine:
             state["error_message"] = str(e)
             state["recovery_attempts"] += 1
             logger.error(f"❌ Modification processing error: {e}")
+            
+            # Log modification processing failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="send_back_modifications_node",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "modification_processing_failed",
+                        "error": str(e),
+                        "recovery_action": "minimal_modifications",
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -659,6 +866,20 @@ class LangGraphCoordinationEngine:
         RETURNS: List of actual Agent instances for action executor
         """
         logger.info("🚀 Start Working Node: Creating actual agent instances for action executor")
+        
+        # Log final agent instantiation start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="start_working_node",
+                event_type=EventType.ACTION_EXECUTED,
+                details={
+                    "action": "final_agent_instantiation_start",
+                    "approved_agent_count": len(state.get("agent_configs", [])),
+                    "total_approval_iterations": state.get("approval_iterations", 0),
+                    "memory_mode": state.get("memory_manager_config", {}).get("mode", "shared"),
+                    "communication_mode": state.get("communication_manager_config", {}).get("mode", "blackboard")
+                }
+            )
         
         current_time = datetime.now().isoformat()
         state["current_step"] = "start_working"
@@ -726,6 +947,21 @@ class LangGraphCoordinationEngine:
             
             logger.info(f"✅ Orchestration completed successfully. {len(actual_agents)} agents ready for execution.")
             
+            # Log successful orchestration completion
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="start_working_node",
+                    event_type=EventType.SYSTEM_END,
+                    details={
+                        "action": "orchestration_completed",
+                        "final_agent_count": len(actual_agents),
+                        "total_approval_iterations": state.get("approval_iterations", 0),
+                        "orchestration_effectiveness": self._calculate_orchestration_effectiveness(state),
+                        "configuration_hash": hash(str(final_config)),
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -737,6 +973,19 @@ class LangGraphCoordinationEngine:
             state["error_message"] = str(e)
             state["recovery_attempts"] += 1
             logger.error(f"❌ Start working error: {e}. Proceeding with current configuration.")
+            
+            # Log orchestration failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="start_working_node",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "orchestration_failed",
+                        "error": str(e),
+                        "recovery_action": "proceed_with_current_config",
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -1078,6 +1327,10 @@ Remember: You are part of a multi-agent system working towards a common goal. Yo
         try:
             # Run the workflow with state persistence
             config = {"configurable": {"thread_id": thread_id}}
+
+            # Initializing the main Shared Log instance
+            self.shared_log = SharedLog(f"orchestration_{thread_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl")
+
             final_state = self.app.invoke(initial_state, config)
             
             logger.info(f"✅ Orchestration completed for thread {thread_id}")
@@ -1229,7 +1482,7 @@ if __name__ == "__main__":
         
         # This is what the action executor will use:
         # action_executor = ActionExecutor()
-        # action_executor.execute_with_agents(agents, task_config)
+        # action_executor.execute_with_agents(agents, task_config , engine.shared_log)
     
     # Get learning insights
     insights = engine.get_learning_insights()
