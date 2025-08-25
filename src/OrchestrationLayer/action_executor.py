@@ -25,6 +25,9 @@ from src.EnviromentModule.enviroment_agent import EnviromentAgent
 from src.CommunicationModule.communication_manager import CommunicationManager, CommunicationMode, create_message
 from src.EnviromentModule.tools.utils import TOOL_METADATA
 from src.message import Message
+from src.SharedLog.shared_log import SharedLog
+from src.SharedLog.event_type import EventType
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -78,11 +81,13 @@ class ActionExecutor:
     LangGraph-based Action Executor with Agent-driven execution intelligence
     """
     
-    def __init__(self):
+    def __init__(self , shared_log : SharedLog):
         self.memory = MemorySaver()  # In-memory storage for current session
         self.workflow = StateGraph(ActionExecutionState)
         self.app = None
         self.agents = []
+
+        self.shared_log = shared_log
         
         # Create Action Executor agent with short-term memory
         self.action_executor_agent = self._create_action_executor_agent()
@@ -235,6 +240,19 @@ class ActionExecutor:
         """
         logger.info("🌍 Environment Perception Node: Analyzing environment state")
         
+        # Log environment perception start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="action_executor_environment_perception",
+                event_type=EventType.AGENT_THINK,
+                details={
+                    "action": "environment_analysis_start",
+                    "task_description": state["task_config"].get("task_description", ""),
+                    "environment_config": state.get("environment_config", {}),
+                    "problem_statement": state.get("problem_statement", "")
+                }
+            )
+        
         current_time = datetime.now().isoformat()
         state["current_step"] = "environment_perception"
         state["execution_phase"] = "perception"
@@ -244,11 +262,37 @@ class ActionExecutor:
             # Create environment perception prompt for Action Executor agent
             perception_prompt = self._create_environment_perception_prompt(state)
             
+            # Log message being sent to Action Executor agent
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.MESSAGE_SENT,
+                    details={
+                        "action": "environment_perception_prompt",
+                        "target_agent": "action_executor_agent",
+                        "message_content": perception_prompt[:500] + "..." if len(perception_prompt) > 500 else perception_prompt,
+                        "message_type": "environment_analysis_request"
+                    }
+                )
+            
             # Use Action Executor agent to analyze environment
             perception_response = self.action_executor_agent.generate_response(
                 problem=perception_prompt,
                 recent_messages=[]
             )
+            
+            # Log response received from Action Executor agent
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.AGENT_THINK,
+                    details={
+                        "action": "environment_perception_response",
+                        "source_agent": "action_executor_agent",
+                        "response_content": perception_response[:500] + "..." if len(perception_response) > 500 else perception_response,
+                        "response_length": len(perception_response)
+                    }
+                )
             
             # Parse and store environment analysis
             environment_analysis = self._parse_environment_analysis(perception_response)
@@ -299,6 +343,20 @@ class ActionExecutor:
             
             logger.info(f"✅ Environment perception completed. State: {environment_analysis.get('summary', 'Analyzed')}")
             
+            # Log successful environment perception
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_environment_perception",
+                    event_type=EventType.ACTION_EXECUTED,
+                    details={
+                        "action": "environment_analysis_completed",
+                        "analysis_result": environment_analysis,
+                        "changes_detected": len(state["environment_changes"]),
+                        "complexity": environment_analysis.get("complexity", "medium"),
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -318,6 +376,19 @@ class ActionExecutor:
                 "constraints": []
             }
             logger.error(f"❌ Environment perception error: {e}. Using fallback state.")
+            
+            # Log environment perception failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_environment_perception",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "environment_analysis_failed",
+                        "error": str(e),
+                        "recovery_action": "use_fallback_environment_state",
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -328,6 +399,19 @@ class ActionExecutor:
         """
         logger.info("🎯 Agent Selection Node: Selecting optimal agent for current task")
         
+        # Log agent selection start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="action_executor_agent_selection",
+                event_type=EventType.AGENT_THINK,
+                details={
+                    "action": "agent_selection_start",
+                    "available_agent_count": len(state["available_agents"]),
+                    "available_agents": [agent.get("agent_id", "unknown") for agent in state["available_agents"]],
+                    "environment_state": state.get("environment_state", {}).get("summary", "unknown")
+                }
+            )
+        
         current_time = datetime.now().isoformat()
         state["current_step"] = "agent_selection"
         state["execution_phase"] = "selection"
@@ -337,11 +421,38 @@ class ActionExecutor:
             # Create agent selection prompt for Action Executor agent
             selection_prompt = self._create_agent_selection_prompt(state)
             
+            # Log message being sent to Action Executor agent for selection
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.MESSAGE_SENT,
+                    details={
+                        "action": "agent_selection_prompt",
+                        "target_agent": "action_executor_agent",
+                        "message_content": selection_prompt[:500] + "..." if len(selection_prompt) > 500 else selection_prompt,
+                        "message_type": "agent_selection_request",
+                        "available_agent_count": len(state["available_agents"])
+                    }
+                )
+            
             # Use Action Executor agent for intelligent selection
             selection_response = self.action_executor_agent.generate_response(
                 problem=selection_prompt,
                 recent_messages=[]
             )
+            
+            # Log response received from Action Executor agent
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.AGENT_THINK,
+                    details={
+                        "action": "agent_selection_response",
+                        "source_agent": "action_executor_agent",
+                        "response_content": selection_response[:500] + "..." if len(selection_response) > 500 else selection_response,
+                        "response_length": len(selection_response)
+                    }
+                )
             
             # Parse selection decision
             selection_result = self._parse_agent_selection(selection_response, state["available_agents"])
@@ -373,6 +484,20 @@ class ActionExecutor:
             
             logger.info(f"✅ Agent selection completed. Selected: {state['selected_agent_id']}")
             
+            # Log successful agent selection
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_agent_selection",
+                    event_type=EventType.ACTION_PROPOSED,
+                    details={
+                        "action": "agent_selection_completed",
+                        "selected_agent": state["selected_agent_id"],
+                        "selection_reasoning": state["agent_selection_reasoning"],
+                        "confidence_score": selection_result.get("confidence", 0.8),
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -390,6 +515,20 @@ class ActionExecutor:
                 state["agent_selection_reasoning"] = f"Fallback selection due to error: {str(e)}"
             
             logger.error(f"❌ Agent selection error: {e}. Using fallback selection.")
+            
+            # Log agent selection failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_agent_selection",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "agent_selection_failed",
+                        "error": str(e),
+                        "recovery_action": "select_fallback_agent",
+                        "fallback_agent": state.get("selected_agent_id", "none"),
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -400,6 +539,19 @@ class ActionExecutor:
         """
         logger.info("💬 Agent Communication Node: Communicating with selected sub-agent")
         
+        # Log agent communication start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="action_executor_agent_communication",
+                event_type=EventType.MESSAGE_SENT,
+                details={
+                    "action": "sub_agent_communication_start",
+                    "target_agent": state.get("selected_agent_id", "unknown"),
+                    "environment_context": state.get("environment_state", {}).get("summary", "unknown"),
+                    "problem_statement": state.get("problem_statement", "")
+                }
+            )
+        
         current_time = datetime.now().isoformat()
         state["current_step"] = "agent_communication"
         state["execution_phase"] = "communication"
@@ -409,12 +561,42 @@ class ActionExecutor:
             # Create communication prompt for the selected sub-agent
             communication_prompt = self._create_agent_communication_prompt(state)
             
+            # Log the message being sent TO the sub-agent
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.MESSAGE_SENT,
+                    details={
+                        "action": "message_to_sub_agent",
+                        "target_agent": state["selected_agent_id"],
+                        "message_content": communication_prompt[:500] + "..." if len(communication_prompt) > 500 else communication_prompt,
+                        "message_type": "action_request",
+                        "environment_state": state.get("environment_state", {}),
+                        "communication_attempt": len(state.get("agent_communication_history", [])) + 1
+                    }
+                )
+            
             # Actually communicate with the selected sub-agent
             agent_response = self._communicate_with_selected_agent(
                 state["selected_agent_id"],
                 communication_prompt,
                 state
             )
+            
+            # Log the response received FROM the sub-agent
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.AGENT_THINK,
+                    details={
+                        "action": "message_from_sub_agent",
+                        "source_agent": state["selected_agent_id"],
+                        "response_content": agent_response[:500] + "..." if len(agent_response) > 500 else agent_response,
+                        "response_length": len(agent_response),
+                        "response_received": bool(agent_response),
+                        "response_quality": self._assess_response_quality(agent_response)
+                    }
+                )
             
             # Store communication history
             communication_record = {
@@ -431,6 +613,20 @@ class ActionExecutor:
             # Parse the sub-agent's response into structured action for Environment Agent
             proposed_action = self._parse_agent_response_to_structured_action(agent_response, state)
             state["proposed_action"] = proposed_action
+            
+            # Log the parsed action
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.ACTION_PROPOSED,
+                    details={
+                        "action": "action_parsed_from_response",
+                        "source_agent": state["selected_agent_id"],
+                        "proposed_action": proposed_action,
+                        "parsing_success": bool(proposed_action),
+                        "action_quality": self._assess_action_quality(proposed_action)
+                    }
+                )
             
             # Store communication event in short-term memory
             communication_event = {
@@ -456,6 +652,22 @@ class ActionExecutor:
             
             logger.info(f"✅ Agent communication completed. Response received: {bool(agent_response)}")
             
+            # Log successful communication completion
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_agent_communication",
+                    event_type=EventType.ACTION_EXECUTED,
+                    details={
+                        "action": "sub_agent_communication_completed",
+                        "agent_id": state["selected_agent_id"],
+                        "communication_success": bool(agent_response),
+                        "action_proposed": bool(proposed_action),
+                        "response_quality": self._assess_response_quality(agent_response),
+                        "total_communications": len(state.get("agent_communication_history", [])),
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -473,6 +685,21 @@ class ActionExecutor:
             state["proposed_action"] = fallback_action
             
             logger.error(f"❌ Agent communication error: {e}. Using direct action fallback.")
+            
+            # Log communication failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_agent_communication",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "sub_agent_communication_failed",
+                        "target_agent": state.get("selected_agent_id", "unknown"),
+                        "error": str(e),
+                        "recovery_action": "fallback_to_direct_action",
+                        "fallback_action": fallback_action,
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -483,6 +710,19 @@ class ActionExecutor:
         """
         logger.info("⚖️ Action Evaluation Node: Evaluating proposed action")
         
+        # Log action evaluation start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="action_executor_action_evaluation",
+                event_type=EventType.AGENT_THINK,
+                details={
+                    "action": "action_evaluation_start",
+                    "proposed_action": state.get("proposed_action", {}),
+                    "source_agent": state.get("selected_agent_id", "unknown"),
+                    "evaluation_criteria": ["quality", "safety", "feasibility", "effectiveness"]
+                }
+            )
+        
         current_time = datetime.now().isoformat()
         state["current_step"] = "action_evaluation"
         state["execution_phase"] = "evaluation"
@@ -492,11 +732,37 @@ class ActionExecutor:
             # Create evaluation prompt for Action Executor agent
             evaluation_prompt = self._create_action_evaluation_prompt(state)
             
+            # Log evaluation prompt being sent
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.MESSAGE_SENT,
+                    details={
+                        "action": "action_evaluation_prompt",
+                        "target_agent": "action_executor_agent",
+                        "message_content": evaluation_prompt[:400] + "..." if len(evaluation_prompt) > 400 else evaluation_prompt,
+                        "message_type": "evaluation_request"
+                    }
+                )
+            
             # Use Action Executor agent for intelligent evaluation
             evaluation_response = self.action_executor_agent.generate_response(
                 problem=evaluation_prompt,
                 recent_messages=[]
             )
+            
+            # Log evaluation response received
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.AGENT_THINK,
+                    details={
+                        "action": "action_evaluation_response",
+                        "source_agent": "action_executor_agent",
+                        "response_content": evaluation_response[:400] + "..." if len(evaluation_response) > 400 else evaluation_response,
+                        "response_length": len(evaluation_response)
+                    }
+                )
             
             # Parse evaluation results
             evaluation_result = self._parse_action_evaluation(evaluation_response)
@@ -527,6 +793,23 @@ class ActionExecutor:
             
             logger.info(f"✅ Action evaluation completed. Decision: {evaluation_result.get('decision', 'unknown')}")
             
+            # Log successful action evaluation
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_action_evaluation",
+                    event_type=EventType.ACTION_PROPOSED,
+                    details={
+                        "action": "action_evaluation_completed",
+                        "evaluation_decision": evaluation_result.get("decision", "unknown"),
+                        "quality_score": evaluation_result.get("quality_score", 0.5),
+                        "safety_score": evaluation_result.get("safety_score", 0.5),
+                        "feasibility_score": evaluation_result.get("feasibility_score", 0.5),
+                        "effectiveness_score": evaluation_result.get("effectiveness_score", 0.5),
+                        "reasoning": evaluation_result.get("reasoning", ""),
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -547,6 +830,20 @@ class ActionExecutor:
             }
             
             logger.error(f"❌ Action evaluation error: {e}. Using conservative evaluation.")
+            
+            # Log action evaluation failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_action_evaluation",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "action_evaluation_failed",
+                        "error": str(e),
+                        "recovery_action": "conservative_evaluation",
+                        "fallback_decision": "needs_improvement",
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -556,6 +853,18 @@ class ActionExecutor:
         TRACKS: decision logic, routing decisions, condition evaluation
         """
         logger.info("🔀 Execution Decision Node: Making execution decision")
+        
+        # Log execution decision start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="action_executor_execution_decision",
+                event_type=EventType.AGENT_THINK,
+                details={
+                    "action": "execution_decision_start",
+                    "action_evaluation": state.get("action_evaluation", {}),
+                    "execution_phase": "routing_decision"
+                }
+            )
         
         current_time = datetime.now().isoformat()
         state["current_step"] = "execution_decision"
@@ -591,6 +900,23 @@ class ActionExecutor:
             
             logger.info(f"✅ Execution decision completed. Route: {decision}")
             
+            # Log successful execution decision
+            if self.shared_log:
+                event_type = EventType.ACTION_PROPOSED if decision == "execute" else EventType.ACTION_REJECTED
+                self.shared_log.record_event(
+                    source="action_executor_execution_decision",
+                    event_type=event_type,
+                    details={
+                        "action": "execution_decision_completed",
+                        "routing_decision": decision,
+                        "quality_score": quality_score,
+                        "safety_score": safety_score,
+                        "reasoning": evaluation.get("reasoning", ""),
+                        "next_node": "environment_execution" if decision == "execute" else "feedback_processing",
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -609,6 +935,20 @@ class ActionExecutor:
             }
             
             logger.error(f"❌ Execution decision error: {e}. Defaulting to feedback.")
+            
+            # Log execution decision failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_execution_decision",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "execution_decision_failed",
+                        "error": str(e),
+                        "recovery_action": "default_to_feedback",
+                        "fallback_decision": "needs_improvement",
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -618,6 +958,19 @@ class ActionExecutor:
         TRACKS: execution results, environment changes, performance metrics
         """
         logger.info("🚀 Environment Execution Node: Executing approved action")
+        
+        # Log environment execution start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="action_executor_environment_execution",
+                event_type=EventType.ACTION_EXECUTED,
+                details={
+                    "action": "environment_execution_start",
+                    "proposed_action": state.get("proposed_action", {}),
+                    "environment_state": state.get("environment_state", {}),
+                    "execution_phase": "action_execution"
+                }
+            )
         
         current_time = datetime.now().isoformat()
         state["current_step"] = "environment_execution"
@@ -670,6 +1023,21 @@ class ActionExecutor:
             
             logger.info(f"✅ Action execution completed. Success: {execution_result.get('success', False)}")
             
+            # Log successful environment execution
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_environment_execution",
+                    event_type=EventType.ACTION_EXECUTED,
+                    details={
+                        "action": "environment_execution_completed",
+                        "execution_success": execution_result.get("success", False),
+                        "impact_level": execution_result.get("impact", "unknown"),
+                        "environment_changes": len(state.get("environment_changes", [])),
+                        "execution_result": execution_result,
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -690,6 +1058,20 @@ class ActionExecutor:
             }
             
             logger.error(f"❌ Action execution error: {e}")
+            
+            # Log environment execution failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_environment_execution",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "environment_execution_failed",
+                        "error": str(e),
+                        "recovery_action": "record_execution_failure",
+                        "failed_action": state.get("proposed_action", {}),
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -700,6 +1082,19 @@ class ActionExecutor:
         """
         logger.info("📝 Feedback Processing Node: Processing action feedback")
         
+        # Log feedback processing start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="action_executor_feedback_processing",
+                event_type=EventType.AGENT_THINK,
+                details={
+                    "action": "feedback_processing_start",
+                    "action_evaluation": state.get("action_evaluation", {}),
+                    "proposed_action": state.get("proposed_action", {}),
+                    "processing_phase": "feedback_generation"
+                }
+            )
+        
         current_time = datetime.now().isoformat()
         state["current_step"] = "feedback_processing"
         state["step_timestamps"]["feedback_processing"] = current_time
@@ -708,11 +1103,37 @@ class ActionExecutor:
             # Create feedback prompt for Action Executor agent
             feedback_prompt = self._create_feedback_prompt(state)
             
+            # Log feedback prompt being sent
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.MESSAGE_SENT,
+                    details={
+                        "action": "feedback_prompt",
+                        "target_agent": "action_executor_agent",
+                        "message_content": feedback_prompt[:400] + "..." if len(feedback_prompt) > 400 else feedback_prompt,
+                        "message_type": "feedback_request"
+                    }
+                )
+            
             # Use Action Executor agent to generate feedback
             feedback_response = self.action_executor_agent.generate_response(
                 problem=feedback_prompt,
                 recent_messages=[]
             )
+            
+            # Log feedback response received
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.AGENT_THINK,
+                    details={
+                        "action": "feedback_response",
+                        "source_agent": "action_executor_agent",
+                        "response_content": feedback_response[:400] + "..." if len(feedback_response) > 400 else feedback_response,
+                        "response_length": len(feedback_response) if feedback_response else 0
+                    }
+                )
             
             state["action_feedback"] = feedback_response
             
@@ -737,6 +1158,20 @@ class ActionExecutor:
             
             logger.info("✅ Feedback processing completed")
             
+            # Log successful feedback processing
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_feedback_processing",
+                    event_type=EventType.HUMAN_FEEDBACK,
+                    details={
+                        "action": "feedback_processing_completed",
+                        "feedback_content": feedback_response[:400] + "..." if len(feedback_response) > 400 else feedback_response,
+                        "improvement_suggestions": self._extract_improvement_suggestions(feedback_response),
+                        "feedback_length": len(feedback_response) if feedback_response else 0,
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -752,6 +1187,20 @@ class ActionExecutor:
             state["action_feedback"] = "Please improve the action quality and safety before resubmission."
             
             logger.error(f"❌ Feedback processing error: {e}. Using generic feedback.")
+            
+            # Log feedback processing failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_feedback_processing",
+                    event_type=EventType.HUMAN_FEEDBACK,
+                    details={
+                        "action": "feedback_processing_failed",
+                        "error": str(e),
+                        "recovery_action": "generate_generic_feedback",
+                        "fallback_feedback": "Please improve the action quality and safety before resubmission.",
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -761,6 +1210,19 @@ class ActionExecutor:
         TRACKS: completion criteria, success metrics, continuation decisions
         """
         logger.info("🏁 Completion Check Node: Checking execution completion")
+        
+        # Log completion check start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="action_executor_completion_check",
+                event_type=EventType.AGENT_THINK,
+                details={
+                    "action": "completion_check_start",
+                    "execution_decisions_count": len(state.get("execution_decisions", [])),
+                    "execution_result": state.get("execution_result", {}),
+                    "current_phase": "completion_assessment"
+                }
+            )
         
         current_time = datetime.now().isoformat()
         state["current_step"] = "completion_check"
@@ -777,6 +1239,21 @@ class ActionExecutor:
                 "last_execution_result": state.get("execution_result", {}),
                 "completion_timestamp": current_time
             }
+            
+            # Log safety limit reached
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_completion_check",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "completion_forced_safety_limit",
+                        "execution_count": execution_count,
+                        "safety_limit": 8,
+                        "final_status": "completed_with_safety_limit",
+                        "timestamp": current_time
+                    }
+                )
+            
             return state
         
         # Additional safety: if we have a successful execution result, be pragmatic
@@ -785,17 +1262,59 @@ class ActionExecutor:
             logger.info("✅ Forcing completion due to successful execution and sufficient iterations")
             state["execution_complete"] = True
             state["final_result"] = self._generate_final_result(state)
+            
+            # Log pragmatic completion
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_completion_check",
+                    event_type=EventType.ACTION_EXECUTED,
+                    details={
+                        "action": "completion_forced_success",
+                        "execution_count": execution_count,
+                        "success_threshold": 6,
+                        "execution_success": True,
+                        "final_status": "completed_successfully",
+                        "timestamp": current_time
+                    }
+                )
+            
             return state
         
         try:
             # Create completion check prompt for Action Executor agent
             completion_prompt = self._create_completion_check_prompt(state)
             
+            # Log completion prompt being sent
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.MESSAGE_SENT,
+                    details={
+                        "action": "completion_check_prompt",
+                        "target_agent": "action_executor_agent",
+                        "message_content": completion_prompt[:400] + "..." if len(completion_prompt) > 400 else completion_prompt,
+                        "message_type": "completion_request"
+                    }
+                )
+            
             # Use Action Executor agent to assess completion
             completion_response = self.action_executor_agent.generate_response(
                 problem=completion_prompt,
                 recent_messages=[]
             )
+            
+            # Log completion response received
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_communication",
+                    event_type=EventType.AGENT_THINK,
+                    details={
+                        "action": "completion_check_response",
+                        "source_agent": "action_executor_agent",
+                        "response_content": completion_response[:400] + "..." if len(completion_response) > 400 else completion_response,
+                        "response_length": len(completion_response) if completion_response else 0
+                    }
+                )
             
             # Parse completion decision
             completion_result = self._parse_completion_decision(completion_response)
@@ -828,6 +1347,22 @@ class ActionExecutor:
             
             logger.info(f"✅ Completion check completed. Complete: {state['execution_complete']}")
             
+            # Log successful completion check
+            if self.shared_log:
+                event_type = EventType.ACTION_EXECUTED if state["execution_complete"] else EventType.AGENT_THINK
+                self.shared_log.record_event(
+                    source="action_executor_completion_check",
+                    event_type=event_type,
+                    details={
+                        "action": "completion_check_completed",
+                        "execution_complete": state["execution_complete"],
+                        "completion_reasoning": completion_result.get("reasoning", ""),
+                        "final_result": state.get("final_result", {}) if state["execution_complete"] else None,
+                        "next_action": "workflow_complete" if state["execution_complete"] else "continue_execution",
+                        "timestamp": current_time
+                    }
+                )
+            
         except Exception as e:
             error_info = {
                 "timestamp": current_time,
@@ -847,6 +1382,21 @@ class ActionExecutor:
             }
             
             logger.error(f"❌ Completion check error: {e}. Assuming completion.")
+            
+            # Log completion check failure
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_completion_check",
+                    event_type=EventType.ACTION_EXECUTED,
+                    details={
+                        "action": "completion_check_failed",
+                        "error": str(e),
+                        "recovery_action": "assume_completion",
+                        "forced_completion": True,
+                        "final_status": "completed_with_errors",
+                        "timestamp": current_time
+                    }
+                )
         
         return state
     
@@ -1339,6 +1889,20 @@ class ActionExecutor:
 
     def _communicate_with_selected_agent(self, agent_id: str, prompt: str, state: ActionExecutionState) -> str:
         """Actually communicate with the selected sub-agent"""
+        # Log communication attempt start
+        if self.shared_log:
+            self.shared_log.record_event(
+                source="action_executor_sub_agent_comm",
+                event_type=EventType.MESSAGE_SENT,
+                details={
+                    "action": "direct_agent_communication_start",
+                    "target_agent": agent_id,
+                    "communication_method": "direct_message",
+                    "prompt_length": len(prompt),
+                    "available_agents_count": len(self.agents)
+                }
+            )
+        
         try:
             # Find the actual Agent object (not dict) in self.agents
             selected_agent = None
@@ -1349,7 +1913,33 @@ class ActionExecutor:
             
             if not selected_agent:
                 logger.warning(f"⚠️ Selected agent {agent_id} not found in available agents")
+                
+                # Log agent not found
+                if self.shared_log:
+                    self.shared_log.record_event(
+                        source="action_executor_sub_agent_comm",
+                        event_type=EventType.ACTION_REJECTED,
+                        details={
+                            "action": "agent_not_found",
+                            "target_agent": agent_id,
+                            "available_agents": [agent.agent_id for agent in self.agents],
+                            "error": "Selected agent not found in available agents list"
+                        }
+                    )
                 return ""
+            
+            # Log successful agent location
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_sub_agent_comm",
+                    event_type=EventType.MESSAGE_SENT,
+                    details={
+                        "action": "agent_located_successfully",
+                        "target_agent": agent_id,
+                        "agent_role": getattr(selected_agent, 'role', 'unknown'),
+                        "communication_ready": True
+                    }
+                )
             
             # Use communication manager to send message to the agent
             if hasattr(self, 'comm_manager') and self.comm_manager:
@@ -1361,9 +1951,48 @@ class ActionExecutor:
                     content= prompt,
                     message_type='action_request'
                 )
+                
+                # Log message being sent through communication manager
+                if self.shared_log:
+                    self.shared_log.record_event(
+                        source="action_executor_sub_agent_comm",
+                        event_type=EventType.MESSAGE_SENT,
+                        details={
+                            "action": "message_sent_via_comm_manager",
+                            "target_agent": agent_id,
+                            "message_type": "action_request",
+                            "message_content": prompt[:300] + "..." if len(prompt) > 300 else prompt,
+                            "comm_manager_available": True
+                        }
+                    )
+                
                 response = self.comm_manager.send(
                     message=message
                 )
+                
+                # Log response received
+                if self.shared_log:
+                    response_content = ""
+                    response_type = "none"
+                    if response and hasattr(response, 'content'):
+                        response_content = response.content[:300] + "..." if len(response.content) > 300 else response.content
+                        response_type = "message_object"
+                    elif isinstance(response, str):
+                        response_content = response[:300] + "..." if len(response) > 300 else response
+                        response_type = "string"
+                    
+                    self.shared_log.record_event(
+                        source="action_executor_sub_agent_comm",
+                        event_type=EventType.AGENT_THINK,
+                        details={
+                            "action": "response_received_from_sub_agent",
+                            "source_agent": agent_id,
+                            "response_type": response_type,
+                            "response_content": response_content,
+                            "response_valid": bool(response),
+                            "communication_success": True
+                        }
+                    )
                 
                 if response and hasattr(response, 'content'):
                     return response.content
@@ -1371,14 +2000,70 @@ class ActionExecutor:
                     return response
                 else:
                     logger.warning(f"⚠️ Invalid response type from agent {agent_id}: {type(response)}")
+                    
+                    # Log invalid response type
+                    if self.shared_log:
+                        self.shared_log.record_event(
+                            source="action_executor_sub_agent_comm",
+                            event_type=EventType.ACTION_REJECTED,
+                            details={
+                                "action": "invalid_response_type",
+                                "source_agent": agent_id,
+                                "response_type": str(type(response)),
+                                "error": "Response is not a valid string or message object"
+                            }
+                        )
                     return ""
             else:
                 # Fallback: simulate agent response based on agent capabilities
                 logger.warning(f"⚠️ No communication manager available, simulating response from {agent_id}")
-                return self._simulate_agent_response(selected_agent, prompt, state)
+                
+                # Log fallback to simulation
+                if self.shared_log:
+                    self.shared_log.record_event(
+                        source="action_executor_sub_agent_comm",
+                        event_type=EventType.ACTION_REJECTED,
+                        details={
+                            "action": "fallback_to_simulation",
+                            "target_agent": agent_id,
+                            "reason": "communication_manager_unavailable",
+                            "simulation_method": "capability_based_response"
+                        }
+                    )
+                
+                simulated_response = self._simulate_agent_response(selected_agent, prompt, state)
+                
+                # Log simulated response
+                if self.shared_log:
+                    self.shared_log.record_event(
+                        source="action_executor_sub_agent_comm",
+                        event_type=EventType.AGENT_THINK,
+                        details={
+                            "action": "simulated_response_generated",
+                            "source_agent": agent_id,
+                            "response_content": simulated_response[:300] + "..." if len(simulated_response) > 300 else simulated_response,
+                            "simulation_success": bool(simulated_response),
+                            "communication_method": "simulated"
+                        }
+                    )
+                
+                return simulated_response
                 
         except Exception as e:
             logger.error(f"❌ Error communicating with agent {agent_id}: {e}")
+            
+            # Log communication error
+            if self.shared_log:
+                self.shared_log.record_event(
+                    source="action_executor_sub_agent_comm",
+                    event_type=EventType.ACTION_REJECTED,
+                    details={
+                        "action": "communication_error",
+                        "target_agent": agent_id,
+                        "error": str(e),
+                        "communication_failed": True
+                    }
+                )
             return ""
     
     def _simulate_agent_response(self, agent: Dict[str, Any], prompt: str, state: ActionExecutionState) -> str:
